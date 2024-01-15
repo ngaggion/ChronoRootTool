@@ -1,0 +1,4 @@
+conda install -c "conda-forge/label/cf202003" graph-tool=2.29 pyqt=5.9.2
+conda install numpy scikit-image pandas seaborn
+conda install -c conda-forge pyzbar
+pip install opencv-python==4.1.0.25
