@@ -39,7 +39,16 @@ if __name__ == "__main__":
                 plants = load_path(cam, '*')
                 
                 # Reads QR only once per cam
-                results = load_path(plants[0], '*')[-1]
+                if len(plants) == 0:
+                    continue
+                
+                results = load_path(plants[0], '*')
+
+                if len(results) == 0:
+                    continue
+                else:
+                    results = results[-1]
+                    
                 metadata = json.load(open(results + '/metadata.json', 'r'))
 
                 try:

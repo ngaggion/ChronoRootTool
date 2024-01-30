@@ -136,7 +136,7 @@ class Ui_ChronoRootAnalysis:
                         error_rate = "No segmentation found"
                     else:
                         error_rate = float(f.readline().split(':')[-1])
-                        error_rate = str(round(error_rate, 2)) + '%'
+                        error_rate = str(round(error_rate, 4)*100) + '%'
                 status = "Finished"
             else:
                 date = ""
