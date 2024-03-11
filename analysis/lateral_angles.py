@@ -156,7 +156,7 @@ def getAngles(conf, path):
     LateralRootsNames = []
     NRoots = 0
     
-    filepath = os.path.join(path, 'lateraldata.csv')
+    filepath = os.path.join(path, 'LateralRootsData.csv')
     
     with open(filepath, 'w+') as f:
         writer = csv.writer(f)
@@ -290,50 +290,57 @@ def makeLateralAnglesPlots(conf):
     experiments = loadPath(analysis, '*')
     limit = conf['Limit']
     reportPath = os.path.join(parent_folder, 'Report')
+    reportPath_angle = os.path.join(reportPath, 'Angles Analysis')
+    os.makedirs(reportPath_angle, exist_ok=True)
     
     all_data = pd.DataFrame()
     
     print('Angles report')
+    
+    if os.path.exists(os.path.join(reportPath, 'LateralRootsData.csv')):
+        all_data = pd.read_csv(os.path.join(reportPath, 'LateralRootsData.csv'))
+        all_data['Experiment'] = all_data['Experiment'].astype('str')
+        all_data['Plant_id'] = all_data['Plant_id'].astype('str')
+    else:
+        for exp in experiments:
+            plants = loadPath(exp, '*/*/*')
+            exp_name = exp.replace(analysis, '').replace('/','')
+            print('Experiment:', exp_name, '- Total plants', len(plants))
 
-    for exp in experiments:
-        plants = loadPath(exp, '*/*/*')
-        exp_name = exp.replace(analysis, '').replace('/','')
-        print('Experiment:', exp_name, '- Total plants', len(plants))
+            for plant in plants:
+                results = loadPath(plant, '*')
+                if len(results) == 0:
+                    continue
+                else:
+                    results = results[-1]
+                plant_name = plant.replace(exp, '').replace('/','_')
 
-        for plant in plants:
-            results = loadPath(plant, '*')
-            if len(results) == 0:
-                continue
-            else:
-                results = results[-1]
-            plant_name = plant.replace(exp, '').replace('/','_')
+                file = os.path.join(results, 'LateralRootsData.csv')
+                file2 = os.path.join(results, 'PostProcess_Original.csv')
 
-            file = os.path.join(results, 'lateraldata.csv')
-            file2 = os.path.join(results, 'PostProcess_Original.csv')
+                data2 = pd.read_csv(file2)
+                data2.dropna(inplace=True)
+                
+                date1 = data2.loc[0, "Date"]
+                # using pandas extract day and hour from date1
+                date1 = pd.to_datetime(date1)
+                d0, h0 = date1.day, date1.hour
 
-            data2 = pd.read_csv(file2)
-            data2.dropna(inplace=True)
-            
-            date1 = data2.loc[0, "Date"]
-            # using pandas extract day and hour from date1
-            date1 = pd.to_datetime(date1)
-            d0, h0 = date1.day, date1.hour
+                date2 = data2.loc[data2.shape[0]-1, "Date"]
+                # using pandas extract day and hour from date2
+                date2 = pd.to_datetime(date2)
+                dend, hend = date2.day, date2.hour
+                            
+                data = pd.read_csv(file)
+                data = dataWork(data, d0, h0, dend, hend)
 
-            date2 = data2.loc[data2.shape[0]-1, "Date"]
-            # using pandas extract day and hour from date2
-            date2 = pd.to_datetime(date2)
-            dend, hend = date2.day, date2.hour
-                        
-            data = pd.read_csv(file)
-            data = dataWork(data, d0, h0, dend, hend)
+                data['Plant_id'] = plant_name
+                data['Experiment'] = exp_name
 
-            data['Plant_id'] = plant_name
-            data['Experiment'] = exp_name
+                all_data = pd.concat([all_data, data], ignore_index=True)
 
-            all_data = pd.concat([all_data, data], ignore_index=True)
-
-    # save
-    all_data.to_csv(os.path.join(reportPath, 'lateraldata.csv'), index=False)
+        # save
+        all_data.to_csv(os.path.join(reportPath, 'LateralRootsData.csv'), index=False)
 
     frame = []
     for day in conf['daysAngles'].split(','):
@@ -348,7 +355,8 @@ def makeLateralAnglesPlots(conf):
     n_exp = len(frame['Experiment'].unique())
 
     plt.figure(figsize = (8, 9), dpi = 200)
-
+    sns.color_palette("tab10")
+                      
     ax = plt.subplots()
 
     sns.violinplot(x = 'Day', y = 'Mean emergence angle', data=frame, hue = 'Experiment', inner=None, 
@@ -366,8 +374,10 @@ def makeLateralAnglesPlots(conf):
 
     ax.set_title('Mean emergence angle')
 
-    plt.savefig(os.path.join(reportPath, 'mean_emergence_angle_dist.png'), dpi = 200)
-    plt.savefig(os.path.join(reportPath, 'mean_emergence_angle_dist.svg'), dpi = 200)
+    plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.png'), dpi = 300)
+    plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.svg'), dpi = 300)
+    
+    performStatisticalAnalysisAngles(conf, frame, 'Mean emergence angle')
 
     df = all_data
     plantas = df['Plant_id'].unique()
@@ -379,15 +389,19 @@ def makeLateralAnglesPlots(conf):
         p = df[df['Plant_id']==str(planta)]
         p = p[p['First LR tip'] > 0]
         k = p.shape[0]
+        
         if k > 0:
             while k < s:
-                aux = p.iloc[-1,:].copy()
+                aux = p.iloc[-1, :].copy()
                 aux = aux.to_frame().T
-                p = pd.concat([p, aux], ignore_index = True)
-                k = k + 1
+                if aux.shape[0] != 1 or aux.shape[1] != 10:
+                    print(p.shape, aux.shape)
+                    raise ValueError('Extending 1st LR Error')
+                p = pd.concat([p, aux], ignore_index=True)
+                k = k+1
             else:
-                p = p.iloc[:72,:]    
-                
+                p = p.iloc[:72, :]
+  
             p = p.reset_index()
             p['i'] = p.index
             p = p.drop(['index'], axis = 1)
@@ -395,14 +409,130 @@ def makeLateralAnglesPlots(conf):
             
             syncro = pd.concat([syncro, p], ignore_index = True)
 
-    syncro.to_csv(os.path.join(reportPath, 'syncronizedFirstLR.csv'), index=False)
-
+    syncro.to_csv(os.path.join(reportPath, 'SyncronizedFirstLR.csv'), index=False)
+    
     plt.figure(figsize = (6, 4), dpi = 200)
 
-    sns.lineplot(y = "First LR tip", x = 'i', hue = "Experiment", data = syncro)
+    sns.lineplot(y = "First LR tip", x = 'i', hue = "Experiment", data = syncro, errorbar='se')
     plt.title('Decay of the tip angle (1st LR)')
     plt.xlabel('Time (h)')
     plt.ylabel('Angle')
 
-    plt.savefig(os.path.join(reportPath, 'tip_decay.png'), dpi = 200)
-    plt.savefig(os.path.join(reportPath, 'tip_decay.svg'), dpi = 200)
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.png'), dpi = 200)
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 200)
+    
+    performStatisticalAnalysisFirstLR(conf, syncro, 'First LR tip')
+    
+
+import scipy.stats as stats
+
+def performStatisticalAnalysisAngles(conf, data, metric):
+    data['Experiment'] = data['Experiment'].astype(str)
+    data['Day'] = data['Day'].astype(int).astype(str)
+        
+    UniqueExperiments = data['Experiment'].unique()
+    N_exp = int(len(UniqueExperiments))
+    
+    days = conf['daysAngles'].split(',')
+    
+    # Create a text file to store the results
+    reportPath = os.path.join(conf['MainFolder'], 'Report', 'Angles Analysis')
+    
+    if "/" in metric:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric.replace('/',' over '))
+    else:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric)
+        
+    # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
+    with open(reportPath_stats, 'w') as f:
+        f.write('Using Mann Whitney U test to compare different experiments\n')
+        
+        for day in days:                       
+            # Compare every pair of experiments with Mann-Whitney U test
+            f.write('Day: ' + str(day) + '\n')
+            subdata = data[data['Day'] == str(day)]
+
+            
+            for i in range(0, N_exp-1):
+                for j in range(i+1, N_exp):
+                    exp1 = subdata[subdata['Experiment'] == UniqueExperiments[i]][metric]
+                    exp2 = subdata[subdata['Experiment'] == UniqueExperiments[j]][metric]
+                    
+                    # Perform Mann-Whitney U test
+                    try:
+                        if len(exp1) == 0 or len(exp2) == 0:
+                            raise Exception()
+                            
+                        U, p = stats.mannwhitneyu(exp1, exp2)
+                        p = round(p, 6)
+                        
+                        # Write the mean value of each experiment
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
+                        
+                        # Compare the p-value with the significance level
+                        if p < 0.05:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are significantly different. P-value: ' + str(p) + '\n')
+                        else:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are not significantly different. P-value: ' + str(p) + '\n')
+                    except:
+                        f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' could not be compared\n')
+                        
+            f.write('\n')            
+    return
+
+
+def performStatisticalAnalysisFirstLR(conf, data, metric):
+    data['Experiment'] = data['Experiment'].astype(str)    
+    UniqueExperiments = data['Experiment'].unique()
+    N_exp = int(len(UniqueExperiments))
+        
+    # Create a text file to store the results
+    reportPath = os.path.join(conf['MainFolder'],'Report', 'Angles Analysis')
+    
+    if "/" in metric:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric.replace('/',' over '))
+    else:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric)
+        
+    # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
+    with open(reportPath_stats, 'w') as f:
+        f.write('Using Mann Whitney U test to compare different experiments\n')
+        f.write('Statistical analysis is performed every 6 hours\n')
+        
+        for hour in range(0, 70, 6):                       
+            # Compare every pair of experiments with Mann-Whitney U test
+            end = hour + 6
+            
+            f.write('Hour: ' + str(hour) + '-' + str(end) + '\n')
+            
+            hours = np.arange(hour, end)
+            subdata = data[data['i'].isin(hours)]
+
+            for i in range(0, N_exp-1):
+                for j in range(i+1, N_exp):
+                    exp1 = subdata[subdata['Experiment'] == UniqueExperiments[i]][metric]
+                    exp2 = subdata[subdata['Experiment'] == UniqueExperiments[j]][metric]
+                    
+                    # Perform Mann-Whitney U test
+                    try:
+                        if len(exp1) == 0 or len(exp2) == 0:
+                            raise Exception()
+                            
+                        U, p = stats.mannwhitneyu(exp1, exp2)
+                        p = round(p, 6)
+                        
+                        # Write the mean value of each experiment
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
+                        
+                        # Compare the p-value with the significance level
+                        if p < 0.05:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are significantly different. P-value: ' + str(p) + '\n')
+                        else:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are not significantly different. P-value: ' + str(p) + '\n')
+                    except:
+                        f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' could not be compared\n')
+                        
+            f.write('\n')            
+    return

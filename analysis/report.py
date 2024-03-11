@@ -80,8 +80,68 @@ def plot_individual_plant(savepath, dataframe, name):
     plt.clf()
     plt.close('all')
 
+import scipy.stats as stats
+
+def performStatisticalAnalysis(conf, data, metric):
+    UniqueExperiments = data['Experiment'].unique().astype(str)
+    N_exp = int(len(UniqueExperiments))
+    N_days = conf['processingLimitField']
+    
+    # Create a text file to store the results
+    reportPath = os.path.join(conf['MainFolder'],'Report', 'Temporal Parameters')
+    
+    if "/" in metric:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric.replace('/',' over '))
+    else:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric)
+        
+    # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
+    with open(reportPath_stats, 'w') as f:
+        f.write('Using Mann Whitney U test to compare different experiments\n')
+        f.write('Uses the average value, per plant, per day\n\n')
+         
+        for day in range(0, N_days):            
+            # Time is in hours, subdata should be hours from 0 to 23 for Day 1
+            # Select based in Time column
+            hours = np.arange(0 * day, 24 * (day+1))
+            subdata = data[data['ElapsedTime (h)'].isin(hours)]
+            subdata = subdata.groupby(['Experiment', 'Plant_id']).mean().reset_index()
+            subdata['Experiment'] = subdata['Experiment'].astype(str)
+            
+            # Compare every pair of experiments with Mann-Whitney U test
+            f.write('Day: ' + str(day+1) + '\n')
+            f.write('Hours from ' + str(0 + 24*day) + ' to ' + str(23 + 24*day) + '\n')
+            
+            for i in range(0, N_exp-1):
+                for j in range(i+1, N_exp):
+                    exp1 = subdata[subdata['Experiment'] == UniqueExperiments[i]][metric]
+                    exp2 = subdata[subdata['Experiment'] == UniqueExperiments[j]][metric]
+                    
+                    # Perform Mann-Whitney U test
+                    try:
+                        U, p = stats.mannwhitneyu(exp1, exp2)
+                        p = round(p, 6)
+                        
+                        # Write the mean value of each experiment
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
+                        
+                        # Compare the p-value with the significance level
+                        if p < 0.05:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are significantly different. P-value: ' + str(p) + '\n')
+                        else:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are not significantly different. P-value: ' + str(p) + '\n')
+                    except:
+                        f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' could not be compared\n')
+                        
+            f.write('\n')            
+    return
+
 def plot_info_all(savepath, dataframe):
     plt.ioff()
+    
+    # set color palette
+    sns.set_palette("tab10")
 
     # plt.rcParams.update({'font.size': 18})
 
@@ -94,34 +154,40 @@ def plot_info_all(savepath, dataframe):
     f_ax5 = fig3.add_subplot(gs[1, 1])
     f_ax6 = fig3.add_subplot(gs[1, 2])
 
-    sns.lineplot(x = 'ElapsedTime (h)', y = 'MainRootLength (mm)', data = dataframe, hue = 'Experiment', errorbar='sd', ax = f_ax1)
+    sns.lineplot(x = 'ElapsedTime (h)', y = 'MainRootLength (mm)', data = dataframe, hue = 'Experiment', errorbar='se', ax = f_ax1)
     f_ax1.set_title('MR length', fontsize = 16)
-    f_ax1.set_ylabel('Length (mm)')
+    f_ax1.set_ylabel('Length (mm)', fontsize = 12)
+    f_ax1.set_xlabel('Elapsed Time (h)', fontsize = 12)
     f_ax1.legend(loc='upper left')
 
-    sns.lineplot(x = 'ElapsedTime (h)', y = 'LateralRootsLength (mm)', data = dataframe, hue = 'Experiment', errorbar='sd', ax = f_ax2)
+    sns.lineplot(x = 'ElapsedTime (h)', y = 'LateralRootsLength (mm)', data = dataframe, hue = 'Experiment', errorbar='se', ax = f_ax2)
     f_ax2.set_title('LR length', fontsize = 16)
-    f_ax2.set_ylabel('Length (mm)')
+    f_ax2.set_ylabel('Length (mm)', fontsize = 12)
+    f_ax2.set_xlabel('Elapsed Time (h)', fontsize = 12)
     f_ax2.legend(loc='upper left')
 
-    sns.lineplot(x = 'ElapsedTime (h)', y = 'TotalLength (mm)', data = dataframe, hue = 'Experiment', errorbar='sd', ax = f_ax3)
+    sns.lineplot(x = 'ElapsedTime (h)', y = 'TotalLength (mm)', data = dataframe, hue = 'Experiment', errorbar='se', ax = f_ax3)
     f_ax3.set_title('TR length', fontsize = 16)
-    f_ax3.set_ylabel('Length (mm)')
+    f_ax3.set_ylabel('Length (mm)', fontsize = 12)
+    f_ax3.set_xlabel('Elapsed Time (h)', fontsize = 12)
     f_ax3.legend(loc='upper left')
         
-    sns.lineplot(x = 'ElapsedTime (h)', y = 'NumberOfLateralRoots', hue = 'Experiment', data = dataframe, errorbar='sd', ax = f_ax4)
+    sns.lineplot(x = 'ElapsedTime (h)', y = 'NumberOfLateralRoots', hue = 'Experiment', data = dataframe, errorbar='se', ax = f_ax4)
     f_ax4.set_title('Number of LR', fontsize = 16)
-    f_ax4.set_ylabel('Number of LR')
+    f_ax4.set_ylabel('Number of LR', fontsize = 12)
+    f_ax4.set_xlabel('Elapsed Time (h)', fontsize = 12)
     f_ax4.legend(loc='upper left')
 
-    sns.lineplot(x = 'ElapsedTime (h)', y = 'DiscreteLateralDensity (LR/cm)', hue = 'Experiment', data = dataframe, errorbar='sd', ax = f_ax5)
+    sns.lineplot(x = 'ElapsedTime (h)', y = 'DiscreteLateralDensity (LR/cm)', hue = 'Experiment', data = dataframe, errorbar='se', ax = f_ax5)
     f_ax5.set_title('Discrete LR Density', fontsize = 16)
-    f_ax5.set_ylabel('Discrete LR density (LRs/cm)')
+    f_ax5.set_ylabel('Discrete LR density (LRs/cm)', fontsize = 12)
+    f_ax5.set_xlabel('Elapsed Time (h)', fontsize = 12)
     f_ax5.legend(loc='upper left')
 
-    sns.lineplot(x = 'ElapsedTime (h)', y = 'MainOverTotal (%)', hue = 'Experiment', data = dataframe, errorbar='sd', ax = f_ax6)
+    sns.lineplot(x = 'ElapsedTime (h)', y = 'MainOverTotal (%)', hue = 'Experiment', data = dataframe, errorbar='se', ax = f_ax6)
     f_ax6.set_title('MR length / TR length (%)', fontsize = 16)
-    f_ax6.set_ylabel('Percentage (%)')
+    f_ax6.set_ylabel('Percentage (%)', fontsize = 12)
+    f_ax6.set_xlabel('Elapsed Time (h)', fontsize = 12)
     f_ax6.legend(loc='lower left')
 
     f_ax1.annotate('(A)',(0.47,-0.15), xycoords="axes fraction", fontsize=15, weight = 'bold')
@@ -131,13 +197,13 @@ def plot_info_all(savepath, dataframe):
     f_ax5.annotate('(E)',(0.47,-0.15), xycoords="axes fraction", fontsize=15, weight = 'bold')
     f_ax6.annotate('(F)',(0.47,-0.15), xycoords="axes fraction", fontsize=15, weight = 'bold')
 
-    plt.savefig(os.path.join(savepath,'subplots.svg'),dpi=300, bbox_inches='tight')
-    plt.savefig(os.path.join(savepath,'subplots.png'),dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(savepath,'Temporal_Subplots_Mean_SE.svg'),dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(savepath,'Temporal_Subplots_Mean_SE.png'),dpi=300, bbox_inches='tight')
 
     plt.cla()
     plt.clf()
     plt.close('all')
-
+    
 
 def mkdir(path):
     try:
@@ -383,57 +449,62 @@ def plot_atlases(atlas, atlas2, atlasroot, savepath, name, day = None):
         name = name + ' Day ' + str(day)
 
     plt.suptitle(name)
-    plt.savefig(os.path.join(savepath, name), dpi = 300, bbox_inches = 'tight')
+    
+    os.makedirs(os.path.join(savepath, "Per Experiment"), exist_ok = True)
+    plt.savefig(os.path.join(savepath, "Per Experiment", name), dpi = 300, bbox_inches = 'tight')
 
     plt.cla()
     plt.clf()
     plt.close('all')
 
-def plot_convex_hull(savepath, frame, name = 'convex_hull.png'):
+def plot_convex_hull(savepath, frame, name = ''):
     plt.ioff()
 
     n_types = len(frame['Experiment'].unique())
 
-    plt.figure(figsize = (18, 8))
-    ax = plt.subplot(1,3,1)
+    fig, ax = plt.subplots()
 
     sns.violinplot(x = 'Day', y = 'Convex Hull Area', data=frame, hue = 'Experiment', inner=None, 
                     showmeans=True, zorder=2, legend = False)
     ax = sns.swarmplot(x = 'Day', y = 'Convex Hull Area', data=frame, hue = 'Experiment', dodge= True, 
                 size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2)
-    #ax = sns.pointplot(x = 'Day', y='Convex Hull Area', data=frame, hue = 'Experiment', estimator=np.mean, errorbar=None,
-    #            join=False, dodge=0.4, palette=['#00FF00'], scale=0.5)
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
 
     ax.set_title('Convex Hull Area')
     ax.set_ylabel('Area (mm²)')
+    
+    plt.savefig(os.path.join(savepath, "Convex Hull Area.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Area.svg"), dpi = 300, bbox_inches = 'tight')
 
-    # remove extreme outliers, to make the plot more readable
-    frame2 = frame[frame['Lateral Density'] < 10]
+    fig, ax = plt.subplots()
+    
+    # remove plants without lateral roots
+    frame2 = frame[frame['Lateral Density'] > 0].reset_index(drop = True)
+    hue_order = frame['Experiment'].unique()
 
-    ax = plt.subplot(1,3,2)
     sns.violinplot(x = 'Day', y = 'Lateral Density', data=frame2, hue = 'Experiment', inner=None, 
-                    showmeans=True, zorder=2, legend = False)
+                    showmeans=True, zorder=2, legend = False, hue_order = hue_order)
     ax = sns.swarmplot(x = 'Day', y = 'Lateral Density', data=frame2, hue = 'Experiment', dodge= True, 
-                size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2)
-    #ax = sns.pointplot(x = 'Day', y='Lateral Density', data=frame2, hue = 'Experiment', estimator=np.mean, errorbar=None,
-    #            join=False, dodge=0.4, palette=['#00FF00'], scale=0.5)
+                size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
+                hue_order = hue_order)
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
 
-    ax.set_title('LR Area Density')
+    ax.set_title('LR Convex Hull Area Density')
     ax.set_ylabel('LR / convex hull area (mm/mm²)')
 
-    ax = plt.subplot(1,3,3)
+    plt.savefig(os.path.join(savepath, "CH LR Area Density.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "CH LR Area Density.svg"), dpi = 300, bbox_inches = 'tight')
+
+    fig, ax = plt.subplots()
+    
     sns.violinplot(x = 'Day', y = 'Aspect Ratio', data=frame, hue = 'Experiment', inner=None, 
                     showmeans=True, zorder=2, legend = False)
     ax = sns.swarmplot(x = 'Day', y = 'Aspect Ratio', data=frame, hue = 'Experiment', dodge= True, 
                 size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2)
-    #ax = sns.pointplot(x = 'Day', y='Aspect Ratio', data=frame, hue = 'Experiment', estimator=np.mean, errorbar=None,
-    #            join=False, dodge=0.4, palette=['#00FF00'], scale=0.5)
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
@@ -441,8 +512,70 @@ def plot_convex_hull(savepath, frame, name = 'convex_hull.png'):
     ax.set_title('Aspect Ratio')
     ax.set_ylabel('Aspect Ratio (height/width)')
 
-    plt.savefig(os.path.join(savepath, name), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Aspect Ratio.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Aspect Ratio.svg"), dpi = 300, bbox_inches = 'tight')
 
     plt.cla()
     plt.clf()
     plt.close('all')
+    
+
+def performStatisticalAnalysisConvexHull(conf, data, metric):
+    data['Experiment'] = data['Experiment'].astype(str)
+    data['Day'] = data['Day'].astype(str)
+    
+    UniqueExperiments = data['Experiment'].unique()
+    N_exp = int(len(UniqueExperiments))
+    
+    days = conf['daysConvexHull'].split(',')
+    
+    # Create a text file to store the results
+    reportPath = os.path.join(conf['MainFolder'],'Report', 'Convex Hull and Area Analysis')
+    
+    if "/" in metric:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric.replace('/',' over '))
+    else:
+        reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric)
+        
+    # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
+    with open(reportPath_stats, 'w') as f:
+        f.write('Using Mann Whitney U test to compare different experiments\n')
+        
+        if metric == 'Lateral Density':
+            f.write('For Lateral density, it removes all plants without lateral roots\n\n')
+         
+        for day in days:                       
+            # Compare every pair of experiments with Mann-Whitney U test
+            f.write('Day: ' + str(day) + '\n')
+            subdata = data[data['Day'] == day]
+            
+            if metric == 'Lateral Density':
+                subdata = subdata[subdata['Lateral Density'] > 0].reset_index(drop = True)
+            
+            for i in range(0, N_exp-1):
+                for j in range(i+1, N_exp):
+                    exp1 = subdata[subdata['Experiment'] == UniqueExperiments[i]][metric]
+                    exp2 = subdata[subdata['Experiment'] == UniqueExperiments[j]][metric]
+                    
+                    # Perform Mann-Whitney U test
+                    try:
+                        if len(exp1) == 0 or len(exp2) == 0:
+                            raise Exception()
+                            
+                        U, p = stats.mannwhitneyu(exp1, exp2)
+                        p = round(p, 6)
+                        
+                        # Write the mean value of each experiment
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
+                        
+                        # Compare the p-value with the significance level
+                        if p < 0.05:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are significantly different. P-value: ' + str(p) + '\n')
+                        else:
+                            f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are not significantly different. P-value: ' + str(p) + '\n')
+                    except:
+                        f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' could not be compared\n')
+                        
+            f.write('\n')            
+    return

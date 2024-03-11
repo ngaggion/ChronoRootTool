@@ -136,7 +136,7 @@ class Ui_ChronoRootAnalysis:
                         error_rate = "No segmentation found"
                     else:
                         error_rate = float(f.readline().split(':')[-1])
-                        error_rate = str(round(error_rate, 4)*100) + '%'
+                        error_rate = round(error_rate, 4)
                 status = "Finished"
             else:
                 date = ""
@@ -869,8 +869,8 @@ class Ui_ChronoRootAnalysis:
             set_translation(self.PostProcessButton, "Process\nall plants")
             set_translation(self.saveImagesConvex, "Save images for each day (if unselected will only save them for the last day)")
             set_translation(self.doConvex, "Do Convex hull analysis")
-            set_translation(self.doFourier, "Do Fourier analysis")
-            set_translation(self.doLateralAngles, "Do lateral root angles analysis")
+            set_translation(self.doFourier, "Do GrowthSpeeds and Fourier Analysis")
+            set_translation(self.doLateralAngles, "Do Lateral Root Angles Analysis")
             set_translation(self.PostProcessButton2, "Process\nall plants")
             set_translation(self.reportButton, "Generate report")
             set_translation(self.loadLastConfig2, "Load\nprevious\nconfiguration")
