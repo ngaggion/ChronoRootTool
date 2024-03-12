@@ -278,11 +278,74 @@ def dataWork(data, d0, h0, dend, hend):
 
     data2['i'] = data2.index
     data2['Day'] -= d0
+    
+    data2 = data2.astype('float')
+    
+    print(data2.colums)
 
-    return data2.astype('float')
+    return data2
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+def avoidIncreasingValues(data, metric, tol = 0.3):
+    # first perform a median filter to avoid spikes
+    data[metric] = data[metric].rolling(window=5, min_periods=1).median()
+    
+    # then check if there no high jumps given a tolerance of 30%
+    series = data[metric]
+    for j in range(12, len(series)):        
+        if series.iloc[j] < series.iloc[j-1] * (1+tol):
+            continue
+        else:
+            series.iloc[j] = series.iloc[j-1]
+    data[metric] = series
+    
+    return data
+
+def getFirstLateralRoots(conf, df):
+    reportPath = os.path.join(conf['MainFolder'], 'Report')
+    
+    plantas = df['Plant_id'].unique()
+    
+    print("Synchronizing 1st LR tip")
+    
+    # Add a column to the dataframe to store if the datapoint is original or extended
+    df['Real'] = 1
+
+    s = 72
+    syncro = pd.DataFrame()
+
+    for planta in plantas:
+        p = df[df['Plant_id']==str(planta)]
+        p = p[p['First LR tip'] > 0]
+        k = p.shape[0]
+        
+        if k > 0:
+            p = avoidIncreasingValues(p, 'First LR tip')
+            
+            while k < s:
+                aux = p.iloc[-1, :].copy()
+                aux = aux.to_frame().T
+                if aux.shape[0] != 1 or aux.shape[1] != 11:
+                    print(p.shape, aux.shape)
+                    raise ValueError('Extending 1st LR Error')
+                aux['Real'] = 0
+                p = pd.concat([p, aux], ignore_index=True)
+                k = k+1
+            else:
+                p = p.iloc[:72, :]
+            
+            p = p.reset_index()
+            p['Time'] = p.index
+            p = p.drop(['index'], axis = 1)
+            p = p.loc[:,['Time', 'First LR tip', 'Experiment', 'Plant_id', 'Real']]
+            
+            syncro = pd.concat([syncro, p], ignore_index = True)
+
+    syncro.to_csv(os.path.join(reportPath, 'SyncronizedFirstLR.csv'), index=False)
+    
+    return syncro
 
 def makeLateralAnglesPlots(conf):
     parent_folder = conf['MainFolder']
@@ -363,10 +426,6 @@ def makeLateralAnglesPlots(conf):
                         showmeans=True, zorder=2, legend = False)
     ax = sns.swarmplot(x = 'Day', y = 'Mean emergence angle', data=frame, hue = 'Experiment', dodge= True, 
                        size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2)
-    #ax = sns.pointplot(x = 'Day', y='Mean emergence angle', data=frame, hue = 'Experiment', estimator=np.mean, errorbar=None,
-    #                join=False, dodge=0.4, palette=['#00FF00'], scale=0.5)
-
-    #set ylim 
     ax.set_ylim(-20, 120)
     
     handles, labels = ax.get_legend_handles_labels()
@@ -379,41 +438,11 @@ def makeLateralAnglesPlots(conf):
     
     performStatisticalAnalysisAngles(conf, frame, 'Mean emergence angle')
 
-    df = all_data
-    plantas = df['Plant_id'].unique()
-
-    s = 72
-    syncro = pd.DataFrame()
-
-    for planta in plantas:
-        p = df[df['Plant_id']==str(planta)]
-        p = p[p['First LR tip'] > 0]
-        k = p.shape[0]
-        
-        if k > 0:
-            while k < s:
-                aux = p.iloc[-1, :].copy()
-                aux = aux.to_frame().T
-                if aux.shape[0] != 1 or aux.shape[1] != 10:
-                    print(p.shape, aux.shape)
-                    raise ValueError('Extending 1st LR Error')
-                p = pd.concat([p, aux], ignore_index=True)
-                k = k+1
-            else:
-                p = p.iloc[:72, :]
-  
-            p = p.reset_index()
-            p['i'] = p.index
-            p = p.drop(['index'], axis = 1)
-            p = p.loc[:,['i', 'First LR tip', 'Experiment', 'Plant_id']]
-            
-            syncro = pd.concat([syncro, p], ignore_index = True)
-
-    syncro.to_csv(os.path.join(reportPath, 'SyncronizedFirstLR.csv'), index=False)
+    syncro = getFirstLateralRoots(conf, all_data)
     
     plt.figure(figsize = (6, 4), dpi = 200)
 
-    sns.lineplot(y = "First LR tip", x = 'i', hue = "Experiment", data = syncro, errorbar='se')
+    sns.lineplot(y = "First LR tip", x = 'Time', hue = "Experiment", data = syncro, errorbar='se')
     plt.title('Decay of the tip angle (1st LR)')
     plt.xlabel('Time (h)')
     plt.ylabel('Angle')
@@ -421,9 +450,17 @@ def makeLateralAnglesPlots(conf):
     plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.png'), dpi = 200)
     plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 200)
     
+    plt.figure(figsize = (6, 4), dpi = 200)
+    sns.lineplot(y = "Real", x = 'Time', hue = "Experiment", data = syncro, errorbar=None, estimator=np.count_nonzero)
+    plt.title('Number of plant with first LR roots per experiment')
+    plt.ylabel('Number of first LR')
+    plt.xlabel('Time elapsed since emergence (h)')
+    
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Number.png'), dpi = 200)
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Number.svg'), dpi = 200)
+    
     performStatisticalAnalysisFirstLR(conf, syncro, 'First LR tip')
     
-
 import scipy.stats as stats
 
 def performStatisticalAnalysisAngles(conf, data, metric):
@@ -507,7 +544,7 @@ def performStatisticalAnalysisFirstLR(conf, data, metric):
             f.write('Hour: ' + str(hour) + '-' + str(end) + '\n')
             
             hours = np.arange(hour, end)
-            subdata = data[data['i'].isin(hours)]
+            subdata = data[data['Time'].isin(hours)]
 
             for i in range(0, N_exp-1):
                 for j in range(i+1, N_exp):
