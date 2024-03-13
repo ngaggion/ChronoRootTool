@@ -259,6 +259,8 @@ def get_atlases(psave, days = [6,7,8,9,10], rotateRoot = True):
         densidad_total_list = []
         densidad_lateral_bbox_list = []
         densidad_total_bbox_list = []       
+        width_list = []
+        height_list = []
         
         for i in paths:
             data = load_path(i, 'PostProcess_Hour.csv')
@@ -407,6 +409,8 @@ def get_atlases(psave, days = [6,7,8,9,10], rotateRoot = True):
                     densidad_total_list.append(densidad_total)
                     densidad_lateral_bbox_list.append(densidad_lateral_bbox)
                     densidad_total_bbox_list.append(densidad_total_bbox)
+                    width_list.append(w * pixel_size)
+                    height_list.append(h * pixel_size)
                 except:
                     print("LEN",len(data['TotalLength (mm)']))
                     print(indice)
@@ -414,8 +418,13 @@ def get_atlases(psave, days = [6,7,8,9,10], rotateRoot = True):
             else:
                 print('No contour')
     
-        listas = list(zip(aspect_ratio_list, densidad_lateral_list, densidad_lateral_bbox_list, densidad_total_list, densidad_total_bbox_list, area_chull_list, area_bbox_list))
-        dataframe = pd.DataFrame(listas, columns =['Aspect Ratio','Lateral Density','Lateral Density BBOX','Total Density', 'Total Density BBOX', 'Convex Hull Area', 'Bounding Box Area'])
+        listas = list(zip(aspect_ratio_list, densidad_lateral_list, densidad_lateral_bbox_list, 
+                          densidad_total_list, densidad_total_bbox_list, area_chull_list, 
+                          area_bbox_list, width_list, height_list))
+        dataframe = pd.DataFrame(listas, columns =['Aspect Ratio','Lateral Root Area Density',
+                                                   'Lateral Root Area Density BBOX','Total Root Area Density', 
+                                                   'Total Root Area Density BBOX', 'Convex Hull Area', 
+                                                   'Bounding Box Area', 'Width', 'Height'])
         dataframe['Day'] = dia
         frames.append(dataframe)
 
@@ -481,23 +490,23 @@ def plot_convex_hull(savepath, frame, name = ''):
     fig, ax = plt.subplots()
     
     # remove plants without lateral roots
-    frame2 = frame[frame['Lateral Density'] > 0].reset_index(drop = True)
+    frame2 = frame[frame['Lateral Root Area Density'] > 0].reset_index(drop = True)
     hue_order = frame['Experiment'].unique()
 
-    sns.violinplot(x = 'Day', y = 'Lateral Density', data=frame2, hue = 'Experiment', inner=None, 
+    sns.violinplot(x = 'Day', y = 'Lateral Root Area Density', data=frame2, hue = 'Experiment', inner=None, 
                     showmeans=True, zorder=2, legend = False, hue_order = hue_order)
-    ax = sns.swarmplot(x = 'Day', y = 'Lateral Density', data=frame2, hue = 'Experiment', dodge= True, 
+    ax = sns.swarmplot(x = 'Day', y = 'Lateral Root Area Density', data=frame2, hue = 'Experiment', dodge= True, 
                 size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
                 hue_order = hue_order)
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
 
-    ax.set_title('LR Convex Hull Area Density')
+    ax.set_title('Lateral Roots Area Density')
     ax.set_ylabel('LR / convex hull area (mm/mm²)')
 
-    plt.savefig(os.path.join(savepath, "CH LR Area Density.png"), dpi = 300, bbox_inches = 'tight')
-    plt.savefig(os.path.join(savepath, "CH LR Area Density.svg"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Lateral Root Area Density.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Lateral Root Area Density.svg"), dpi = 300, bbox_inches = 'tight')
 
     fig, ax = plt.subplots()
     
@@ -515,9 +524,97 @@ def plot_convex_hull(savepath, frame, name = ''):
     plt.savefig(os.path.join(savepath, "Aspect Ratio.png"), dpi = 300, bbox_inches = 'tight')
     plt.savefig(os.path.join(savepath, "Aspect Ratio.svg"), dpi = 300, bbox_inches = 'tight')
 
+    fig, ax = plt.subplots()
+    
+    # remove plants without lateral roots
+    frame2 = frame[frame['Total Root Area Density'] > 0].reset_index(drop = True)
+    hue_order = frame['Experiment'].unique()
+
+    sns.violinplot(x = 'Day', y = 'Total Root Area Density', data=frame2, hue = 'Experiment', inner=None, 
+                    showmeans=True, zorder=2, legend = False, hue_order = hue_order)
+    ax = sns.swarmplot(x = 'Day', y = 'Total Root Area Density', data=frame2, hue = 'Experiment', dodge= True, 
+                size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
+                hue_order = hue_order)
+
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
+
+    ax.set_title('Total Root Area Density')
+    ax.set_ylabel('TR / convex hull area (mm/mm²)')
+
+    plt.savefig(os.path.join(savepath, "Total Root Area Density.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Total Root Area Density.svg"), dpi = 300, bbox_inches = 'tight')
+
+    fig, ax = plt.subplots()
+    
+    hue_order = frame['Experiment'].unique()
+
+    sns.violinplot(x = 'Day', y = 'Width', data=frame2, hue = 'Experiment', inner=None, 
+                    showmeans=True, zorder=2, legend = False, hue_order = hue_order)
+    ax = sns.swarmplot(x = 'Day', y = 'Width', data=frame2, hue = 'Experiment', dodge= True, 
+                size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
+                hue_order = hue_order)
+
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
+
+    ax.set_title('Convex Hull Width')
+    ax.set_ylabel('Width (mm)')
+
+    plt.savefig(os.path.join(savepath, "Width.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Width.svg"), dpi = 300, bbox_inches = 'tight')
+
+    fig, ax = plt.subplots()
+    
+    hue_order = frame['Experiment'].unique()
+
+    sns.violinplot(x = 'Day', y = 'Height', data=frame2, hue = 'Experiment', inner=None, 
+                    showmeans=True, zorder=2, legend = False, hue_order = hue_order)
+    ax = sns.swarmplot(x = 'Day', y = 'Height', data=frame2, hue = 'Experiment', dodge= True, 
+                size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
+                hue_order = hue_order)
+
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[0:n_types], labels[0:n_types], loc=2)
+
+    ax.set_title('Convex Hull Height')
+    ax.set_ylabel('Height (mm)')
+
+    plt.savefig(os.path.join(savepath, "Height.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Height.svg"), dpi = 300, bbox_inches = 'tight')
+    
     plt.cla()
     plt.clf()
     plt.close('all')
+
+    # Group data by Day and Experiment, then calculate mean and standard deviation for each metric
+    summary_data = frame.groupby(['Day', 'Experiment']).agg({'Convex Hull Area': ['mean', 'std'],
+                                                            'Lateral Root Area Density': ['mean', 'std'],
+                                                            'Aspect Ratio': ['mean', 'std'],
+                                                            'Total Root Area Density': ['mean', 'std'],
+                                                            'Width': ['mean', 'std'],
+                                                            'Height': ['mean', 'std']})
+
+    # Flatten the multi-index columns for better readability
+    summary_data.columns = [' '.join(col).strip() for col in summary_data.columns.values]
+
+    # Reset index to make Day and Experiment as columns
+    summary_data = summary_data.reset_index()
+
+    # Rename columns for better readability
+    summary_data.columns = ['Day', 'Experiment', 
+                            'Convex Hull Area Mean', 'Convex Hull Area Std',
+                            'Lateral Root Area Density Mean', 'Lateral Root Area Density Std',
+                            'Aspect Ratio Mean', 'Aspect Ratio Std',
+                            'Total Root Area Density Mean', 'Total Root Area Density Std',
+                            'Width Mean', 'Width Std',
+                            'Height Mean', 'Height Std']
+    
+    summary_data = summary_data.round(3)
+
+    # Save summary data as a table
+    summary_data.to_csv(os.path.join(savepath, "Summary Table.csv"), index=False)
+
     
 
 def performStatisticalAnalysisConvexHull(conf, data, metric):
@@ -541,16 +638,16 @@ def performStatisticalAnalysisConvexHull(conf, data, metric):
     with open(reportPath_stats, 'w') as f:
         f.write('Using Mann Whitney U test to compare different experiments\n')
         
-        if metric == 'Lateral Density':
-            f.write('For Lateral density, it removes all plants without lateral roots\n\n')
+        if metric == 'Lateral Root Area Density':
+            f.write('For Lateral Root Area Density, it removes all plants without lateral roots\n\n')
          
         for day in days:                       
             # Compare every pair of experiments with Mann-Whitney U test
             f.write('Day: ' + str(day) + '\n')
             subdata = data[data['Day'] == day]
             
-            if metric == 'Lateral Density':
-                subdata = subdata[subdata['Lateral Density'] > 0].reset_index(drop = True)
+            if metric == 'Lateral Root Area Density':
+                subdata = subdata[subdata['Lateral Root Area Density'] > 0].reset_index(drop = True)
             
             for i in range(0, N_exp-1):
                 for j in range(i+1, N_exp):

@@ -130,7 +130,9 @@ if __name__ == "__main__":
         convex_hull.to_csv(os.path.join(reportPath, 'Convex_Hull_Data.csv'), index=False)
         plot_convex_hull(reportPath_convex, convex_hull)
         
-        convex_hull_parameters = ['Convex Hull Area', 'Lateral Density', 'Aspect Ratio']
+        convex_hull_parameters = ['Convex Hull Area', 'Lateral Root Area Density', 
+                                  'Total Root Area Density', 'Aspect Ratio', 'Height', 'Width']
+        
         for parameter in convex_hull_parameters:
             performStatisticalAnalysisConvexHull(conf, convex_hull, parameter)
 

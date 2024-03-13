@@ -269,7 +269,7 @@ def makeFourierPlots(conf):
     f_ax3.set_xlabel('Frequency (1/hour)')
     f_ax3.set_ylabel('Energy')
 
-    exp = 2 + 0.25 * np.cos(1/24 * (time-12) * 2 * np.pi + np.pi)
+    exp = 2 - 0.25 * np.cos(1/24 * (time-12) * 2 * np.pi + np.pi)
     exp2 = 1.5 + 0.25 * np.cos(1/12 * (time-12) * 2 * np.pi + np.pi)
 
     sns.lineplot(x="Time", y = "Signal", data = all_frames, hue="Type", errorbar='se', ax=f_ax4)
@@ -352,6 +352,23 @@ def makeIndividualFourierPlotsMR(conf):
             
         # Put legend with the same colors as the global plot
         ax.legend([UniqueExperiments[i]], loc=2)
+        
+        if i == 0:
+            # Create a second x-axis for displaying the hours
+            ax2 = ax.twiny()
+            ax2.set_xlim(ax.get_xlim())
+
+            # Calculate the total number of days
+            total_days = np.ceil(subdata['Time'].max() / 24).astype(int)
+
+            # Create day ticks
+            day_ticks = np.arange(24, total_days * 24 + 1, 24)
+
+            # Set day ticks and labels
+            ax2.set_xticks(day_ticks)
+            ax2.set_xticklabels([f'Day {i}' for i in range(1, total_days+1)], rotation=45)
+            ax2.tick_params(axis='x', which='major', labelsize=12)
+            ax2.tick_params(axis='x', which='major', length=0)
     
     plt.suptitle('MR Growth Speed', fontsize = 16)
 
@@ -414,6 +431,22 @@ def makeIndividualFourierPlotsTR(conf):
             ax.set_xlabel('Time (h)')
         else:
             ax.set_xlabel('')
+        
+        if i == 0:
+            # Create a second x-axis for displaying the hours
+            ax2 = ax.twiny()
+            ax2.set_xlim(ax.get_xlim())
+
+            # Calculate the total number of days
+            total_days = np.ceil(subdata['Time'].max() / 24).astype(int)
+
+            # Create day ticks
+            day_ticks = np.arange(24, total_days * 24 + 1, 24)
+
+            # Set day ticks and labels
+            ax2.set_xticks(day_ticks)
+            ax2.set_xticklabels([f'Day {i}' for i in range(1, total_days+1)], rotation=45)
+            ax2.tick_params(axis='x', which='major', labelsize=12)
     
     plt.suptitle('TR Growth Speed', fontsize = 16)
 
@@ -453,21 +486,10 @@ def makeIndividualFourierPlotsMR_Norm(conf):
         
     # Make the plot colors follow the same color scheme as the global plot
     colors = sns.color_palette("tab10", N_exp)
-    
-    ax = plt.subplot(N_exp + 1, 1, 1)
-    
-    exp = 0.5 + 0.45 * np.cos(1/24 * (time-12) * 2 * np.pi + np.pi)
-    exp2 = -0.5 + 0.45 * np.cos(1/12 * (time-12) * 2 * np.pi + np.pi)
-    
-    ax.plot(time, exp, color = 'red')
-    ax.plot(time, exp2, color = 'black')
-    ax.legend(['24h', '12h'], loc=4)
-    ax.set_ylabel('Reference sinusoids', fontsize = 10)
-    ax.set_ylim(-1, 1)
-    
+        
     for i in range(0, N_exp):
         subdata = all_frames[all_frames['Type'] == UniqueExperiments[i]]
-        ax = plt.subplot(N_exp + 1, 1, i+2)
+        ax = plt.subplot(N_exp + 1, 1, i+1)
         
         sns.lineplot(x="Time", y = "Signal", data = subdata, errorbar='se', ax=ax, 
                      estimator=np.mean, color=colors[i])
@@ -484,6 +506,33 @@ def makeIndividualFourierPlotsMR_Norm(conf):
             ax.set_xlabel('Time (h)')
         else:
             ax.set_xlabel('')
+            
+        if i == 0:
+            # Create a second x-axis for displaying the hours
+            ax2 = ax.twiny()
+            ax2.set_xlim(ax.get_xlim())
+
+            # Calculate the total number of days
+            total_days = np.ceil(subdata['Time'].max() / 24).astype(int)
+
+            # Create day ticks
+            day_ticks = np.arange(24, total_days * 24 + 1, 24)
+
+            # Set day ticks and labels
+            ax2.set_xticks(day_ticks)
+            ax2.set_xticklabels([f'Day {i}' for i in range(1, total_days+1)], rotation=45)
+            ax2.tick_params(axis='x', which='major', labelsize=12)
+    
+    ax = plt.subplot(N_exp + 1, 1, i+2)
+    
+    exp = 0.5 - 0.45 * np.cos(1/24 * (time-12) * 2 * np.pi + np.pi)
+    exp2 = -0.5 + 0.45 * np.cos(1/12 * (time-12) * 2 * np.pi + np.pi)
+    
+    ax.plot(time, exp, color = 'red')
+    ax.plot(time, exp2, color = 'black')
+    ax.legend(['24h', '12h'], loc=4)
+    ax.set_ylabel('Reference sinusoids')
+    ax.set_ylim(-1, 1)
     
     plt.suptitle('MR Growth Speed (Normalized with Median Filter)', fontsize = 16)
 
@@ -528,6 +577,8 @@ def makeIndividualFourier(conf):
     
     min_s, max_s = np.min(all_frames['FFT']), np.max(all_frames['FFT']), 
     
+    max_s = 30
+    
     # Make the plot colors follow the same color scheme as the global plot
     colors = sns.color_palette("tab10", N_exp)
     
@@ -538,23 +589,38 @@ def makeIndividualFourier(conf):
         sns.lineplot(x="Freqs", y = "FFT", data = subdata, errorbar='se', ax=ax, 
                      estimator=np.mean, color=colors[j])
         
-        peak_12 = 0
-        peak_24 = 0
-
+        peak_12_pos = 0
+        peak_24_pos = 0
+        
         for i in range(0, len(timeb)):
             freq = timeb[i]*deltaf
             
-            if np.abs(freq - 1/24) < 0.0001:
-                peak_24 = fouriers[i][j]
+            if np.abs(freq - 1/24) < 0.001:
+                peak_24_pos = i
                 
-            if np.abs(freq - 1/12) < 0.0001:
-                peak_12 = fouriers[i][j]
-            
-        ax.axvline(x = 1/24, ymin = 0, ymax = peak_24/25, color = 'red')
-        ax.axvline(x = 1/12, ymin = 0, ymax = peak_12/25, color = 'black')
+            if np.abs(freq - 1/12) < 0.001:
+                peak_12_pos = i
+
+        peak_12 = subdata.groupby('Freqs').mean()['FFT'].iloc[peak_12_pos]
+        peak_24 = subdata.groupby('Freqs').mean()['FFT'].iloc[peak_24_pos]
+        
+        # Percentaje of total energy
+        peak_12_over_all = round(peak_12 / subdata.groupby('Freqs').mean()['FFT'].sum() * 100, 2)
+        peak_24_over_all = round(peak_24 / subdata.groupby('Freqs').mean()['FFT'].sum() * 100, 2)
+        peak_24_over_12 = round(peak_24 / peak_12, 2)
+        peak_12_over_24 = round(peak_12 / peak_24, 2)
+        
+        # how do i add a % sign to the text?
+        ax.text(0.35, 0.9, 'Percentage of 1/12h over sum: %.2f%%' % peak_12_over_all, fontsize=10, transform=ax.transAxes)
+        ax.text(0.35, 0.8, 'Percentage of 1/24h over sum: %.2f%%' % peak_24_over_all, fontsize=10, transform=ax.transAxes)
+        ax.text(0.35, 0.7, '1/24h over 1/12h: %.2f' % peak_24_over_12, fontsize=10, transform=ax.transAxes)
+        ax.text(0.35, 0.6, '1/12h over 1/24h: %.2f' % peak_12_over_24, fontsize=10, transform=ax.transAxes)
+        
+        ax.axvline(x = 1/24, ymin = 0, ymax = peak_24/max_s, color = 'red')
+        ax.axvline(x = 1/12, ymin = 0, ymax = peak_12/max_s, color = 'black')
                 
         ax.set_ylabel('Energy')
-        ax.set_ylim(min_s, 30)
+        ax.set_ylim(min_s, max_s)
         ax.set_xlim(0, 0.5)
         ax.legend([UniqueExperiments[j]], loc=4)
         
