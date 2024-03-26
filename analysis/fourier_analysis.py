@@ -201,7 +201,7 @@ def makeFourierPlots(conf):
     plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
     plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
-    fig3 = plt.figure(figsize=(12,12), constrained_layout=True)
+    fig3 = plt.figure(figsize=(12,8), constrained_layout=True, dpi = 300)
     gs = fig3.add_gridspec(2, 2)
     f_ax1 = fig3.add_subplot(gs[0, 0])
     f_ax2 = fig3.add_subplot(gs[0, 1])
@@ -269,8 +269,8 @@ def makeFourierPlots(conf):
     f_ax3.set_xlabel('Frequency (1/hour)')
     f_ax3.set_ylabel('Energy')
 
-    exp = 2 - 0.25 * np.cos(1/24 * (time-12) * 2 * np.pi + np.pi)
-    exp2 = 1.5 + 0.25 * np.cos(1/12 * (time-12) * 2 * np.pi + np.pi)
+    exp = 1.75 - 0.25 * np.cos(1/24 * (time-12) * 2 * np.pi + np.pi)
+    exp2 = 1.25 + 0.25 * np.cos(1/12 * (time-12) * 2 * np.pi + np.pi)
 
     sns.lineplot(x="Time", y = "Signal", data = all_frames, hue="Type", errorbar='se', ax=f_ax4)
     for j in range(0, len(time)):

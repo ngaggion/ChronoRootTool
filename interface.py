@@ -171,11 +171,22 @@ class Ui_ChronoRootAnalysis:
 
         if not selected_rows:
             return
-
+       
         selected_row = selected_rows[0].row()
         item = self.table.item(selected_row, 0)
         path = item.path
+        
+        # Open the directory in the file explorer
+        if os.name == 'nt':  # Windows
+            os.startfile(path)
+        elif sys.platform == 'darwin':  # macOS
+            os.system(f'open "{path}"')
+        else:  # Linux
+            os.system(f'xdg-open "{path}"')
 
+    def open_selected_path_tab3(self):
+        path = self.selected_plant
+            
         # Open the directory in the file explorer
         if os.name == 'nt':  # Windows
             os.startfile(path)
@@ -374,10 +385,6 @@ class Ui_ChronoRootAnalysis:
         path = self.selected_plant
         subprocess.Popen(["python", "4_reviewPlant.py", "--path", path])
 
-    def drawAngles(self):
-        path = self.selected_plant
-        print("Not yet implemented")
-
     def syncProjectFolderField(self):
         projectFolder = self.projectField.text()
         projectFolder2 = self.projectField_2.text()
@@ -416,6 +423,7 @@ class Ui_ChronoRootAnalysis:
         self.setup_tab2_elements()
         self.setup_tab3_elements()
         self.setup_tab4_elements()
+        self.setup_tab5_elements()
 
         chrono_root_analysis.setCentralWidget(self.central_widget)
         self.statusbar = QtWidgets.QStatusBar(chrono_root_analysis)
@@ -493,10 +501,6 @@ class Ui_ChronoRootAnalysis:
         self.processingLimitField.setGeometry(QtCore.QRect(190, 450, 51, 31))
         self.processingLimitField.setObjectName("processingLimitField")
         self.processingLimitField.textChanged.connect(self.syncProcessingLimitField)
-
-        self.emergenceDistanceField = QtWidgets.QLineEdit(self.tab1)
-        self.emergenceDistanceField.setGeometry(QtCore.QRect(190, 550, 51, 31))
-        self.emergenceDistanceField.setObjectName("emergenceDistanceField")
 
         self.saveButton = QtWidgets.QPushButton(self.tab1)
         self.saveButton.setGeometry(QtCore.QRect(660, 0, 141, 81))
@@ -579,14 +583,6 @@ class Ui_ChronoRootAnalysis:
         self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_2.setObjectName("line_2")
 
-        self.label_32 = QtWidgets.QLabel(self.tab1)
-        self.label_32.setGeometry(QtCore.QRect(10, 550, 161, 31))
-        self.label_32.setObjectName("label_32")
-
-        self.label_33 = QtWidgets.QLabel(self.tab1)
-        self.label_33.setGeometry(QtCore.QRect(260, 550, 261, 31))
-        self.label_33.setObjectName("label_33")
-
         return
 
     def setup_tab2_elements(self):
@@ -668,8 +664,8 @@ class Ui_ChronoRootAnalysis:
         self.reviewButton = QPushButton("View full sequence")
         self.reviewButton.clicked.connect(self.reviewPlant)
 
-        self.drawAnglesButton = QPushButton("Draw angles")
-        self.drawAnglesButton.clicked.connect(self.drawAngles)
+        self.openPathButton2 = QPushButton("Open Folder")
+        self.openPathButton2.clicked.connect(self.open_selected_path_tab3)
 
         # Set up the layout for the checkbox, dropdown menu, and refresh button
         controls_layout = QHBoxLayout()
@@ -681,7 +677,7 @@ class Ui_ChronoRootAnalysis:
         controls_layout2.addWidget(self.rerun_analysis_button)
         controls_layout2.addWidget(self.remove_path_button_tab3)
         controls_layout2.addWidget(self.reviewButton)
-        controls_layout2.addWidget(self.drawAnglesButton)
+        controls_layout2.addWidget(self.openPathButton2)
 
         # Set up the main layout
         layout = QHBoxLayout()
@@ -722,7 +718,7 @@ class Ui_ChronoRootAnalysis:
         self.doConvex.setObjectName("doConvex")
 
         self.doFourier = QtWidgets.QCheckBox(self.tab4)
-        self.doFourier.setGeometry(QtCore.QRect(10, 240, 301, 31))
+        self.doFourier.setGeometry(QtCore.QRect(10, 240, 601, 31))
         self.doFourier.setFont(font)
         self.doFourier.setObjectName("doFourier")
 
@@ -730,6 +726,18 @@ class Ui_ChronoRootAnalysis:
         self.doLateralAngles.setGeometry(QtCore.QRect(10, 310, 301, 31))
         self.doLateralAngles.setFont(font)
         self.doLateralAngles.setObjectName("doLateralAngles")
+
+        self.emergenceDistanceField = QtWidgets.QLineEdit(self.tab4)
+        self.emergenceDistanceField.setGeometry(QtCore.QRect(150, 410, 51, 31))
+        self.emergenceDistanceField.setObjectName("emergenceDistanceField")
+
+        self.label_32 = QtWidgets.QLabel(self.tab4)
+        self.label_32.setGeometry(QtCore.QRect(10, 410, 161, 31))
+        self.label_32.setObjectName("label_32")
+
+        self.label_33 = QtWidgets.QLabel(self.tab4)
+        self.label_33.setGeometry(QtCore.QRect(260, 410, 261, 31))
+        self.label_33.setObjectName("label_33")
 
         self.daysAnglesField = QtWidgets.QLineEdit(self.tab4)
         self.daysAnglesField.setGeometry(QtCore.QRect(150, 360, 221, 31))
@@ -815,6 +823,53 @@ class Ui_ChronoRootAnalysis:
 
         return
 
+    def update_report_labels(self):
+        if self.projectField.text() == "":
+            self.report_label_1.clear()
+            self.report_label_1.setText("No project selected. \n Please select a project.")
+            self.report_label_1.setAlignment(QtCore.Qt.AlignCenter)
+            self.report_label_1.show()
+
+            return 
+
+        report_path = os.path.join(self.projectField.text(), "Report")
+
+        # Check if the report path exists
+        if report_path is None or not os.path.exists(report_path):
+            self.report_label_1.clear()
+            self.report_label_1.setText("No report available. \n Refresh to update")
+            self.report_label_1.setAlignment(QtCore.Qt.AlignCenter)
+            self.report_label_1.show()
+        else:
+            report_path_1 = os.path.join(report_path, "Temporal Parameters/Temporal_Subplots_Mean_SE.png")
+            size = QtCore.QSize(750, 750)
+            pixmap_1 = QtGui.QPixmap(report_path_1)
+            self.report_label_1.set_pixmap(pixmap_1, size)
+            self.report_label_1.show()
+        
+        return
+
+    def setup_tab5_elements(self):
+        self.tab5 = QtWidgets.QWidget()
+        self.tab5.setObjectName("tab5")
+        self.tab_widget.addTab(self.tab5, "")
+
+        # Create the image labels
+        self.report_label_1 = AspectRatioLabel()
+        self.report_label_1.setMaximumSize(750, 750)
+        self.report_label_1.setObjectName("report_label_1") 
+
+        self.refresh_button_tab5 = QPushButton(self.tab5)
+        self.refresh_button_tab5.setObjectName("Refresh_5")
+        self.refresh_button_tab5.clicked.connect(self.update_report_labels)
+
+        # Set up the main layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.report_label_1)
+        layout.addWidget(self.refresh_button_tab5)
+
+        self.tab5.setLayout(layout) 
+
     def retranslate_ui(self, ChronoRootAnalysis):
         _translate = QtCore.QCoreApplication.translate
         
@@ -869,7 +924,7 @@ class Ui_ChronoRootAnalysis:
             set_translation(self.PostProcessButton, "Process\nall plants")
             set_translation(self.saveImagesConvex, "Save images for each day (if unselected will only save them for the last day)")
             set_translation(self.doConvex, "Do Convex hull analysis")
-            set_translation(self.doFourier, "Do GrowthSpeeds and Fourier Analysis")
+            set_translation(self.doFourier, "Evaluate Growth Speeds and perform Fourier Analysis")
             set_translation(self.doLateralAngles, "Do Lateral Root Angles Analysis")
             set_translation(self.PostProcessButton2, "Process\nall plants")
             set_translation(self.reportButton, "Generate report")
@@ -878,12 +933,14 @@ class Ui_ChronoRootAnalysis:
             set_translation(self.loadProject_2, "Select Project Folder")
             set_translation(self.refresh_button, "Refresh")
             set_translation(self.refresh_button_tab3, "Refresh")
+            set_translation(self.refresh_button_tab5, "Refresh")
             set_translation(self.open_path_button, "Open Path")
 
         def translate_tab_text():
             self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab1), _translate("ChronoRootAnalysis", "Plant Analysis"))
             self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab2), _translate("ChronoRootAnalysis", "Analysis Overview"))
             self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab4), _translate("ChronoRootAnalysis", "Generate Report"))
+            self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab5), _translate("ChronoRootAnalysis", "Report"))
             
         translate_main_elements()
         translate_labels()
