@@ -260,6 +260,8 @@ class Ui_ChronoRootAnalysis:
 
     def update_image_labels(self):
         # Get the selected plant
+        # check if the plant is selected
+        
         self.selected_plant = self.plant_dropdown.currentText()
 
         # Load the images for the selected plant and time index
@@ -269,8 +271,9 @@ class Ui_ChronoRootAnalysis:
         # Check if image paths exist
         if image1_path is None or not os.path.exists(image1_path):
             self.image_label1.clear()
-            self.image_label1.setText("Analysis is not yet finished. \n Refresh to update")
-            self.image_label1.setAlignment(QtCore.Qt.AlignCenter)
+            size = QtCore.QSize(250, 560)
+            pixmap2 = QtGui.QPixmap("placeholder_figures/plant_placeholder.png")
+            self.image_label1.set_pixmap(pixmap2, size)
             self.image_label1.show()
         else:
             # Clear the message if the image paths exist
@@ -316,8 +319,9 @@ class Ui_ChronoRootAnalysis:
             self.image_label2.show()
         else:
             self.image_label2.clear()
-            self.image_label2.setText("Plant processing needed.")
-            self.image_label2.setAlignment(QtCore.Qt.AlignCenter)
+            size = QtCore.QSize(400, 400)
+            pixmap2 = QtGui.QPixmap("placeholder_figures/plant_report_placeholder.png")
+            self.image_label2.set_pixmap(pixmap2, size)
             self.image_label2.show()
 
         return
@@ -693,6 +697,8 @@ class Ui_ChronoRootAnalysis:
         self.tab3 = QtWidgets.QWidget()
         self.tab3.setLayout(bigLayout)
         self.tab_widget.addTab(self.tab3, "Plant Overlay")
+        
+        self.update_image_labels()
 
     def setup_tab4_elements(self):
         self.tab4 = QtWidgets.QWidget()
@@ -824,30 +830,54 @@ class Ui_ChronoRootAnalysis:
         return
 
     def update_report_labels(self):
-        if self.projectField.text() == "":
+        report_path = os.path.join(self.projectField.text(), "Report/")
+        current_report = self.report_dropdown.currentText()
+        
+        if (self.projectField.text() == "" or not os.path.exists(self.projectField.text()) 
+            or not os.path.exists(report_path) or current_report == ""):
+                
             self.report_label_1.clear()
-            self.report_label_1.setText("No project selected. \n Please select a project.")
-            self.report_label_1.setAlignment(QtCore.Qt.AlignCenter)
-            self.report_label_1.show()
-
-            return 
-
-        report_path = os.path.join(self.projectField.text(), "Report")
-
-        # Check if the report path exists
-        if report_path is None or not os.path.exists(report_path):
-            self.report_label_1.clear()
-            self.report_label_1.setText("No report available. \n Refresh to update")
-            self.report_label_1.setAlignment(QtCore.Qt.AlignCenter)
-            self.report_label_1.show()
-        else:
-            report_path_1 = os.path.join(report_path, "Temporal Parameters/Temporal_Subplots_Mean_SE.png")
-            size = QtCore.QSize(750, 750)
+            report_path_1 = os.path.join("placeholder_figures/report_placeholder.png")
+            size = QtCore.QSize(750, 550)
             pixmap_1 = QtGui.QPixmap(report_path_1)
             self.report_label_1.set_pixmap(pixmap_1, size)
+            self.report_label_1.setAlignment(QtCore.Qt.AlignCenter)
             self.report_label_1.show()
-        
+            return 
+        else:
+            report_path_1 = os.path.join(report_path, current_report)
+            size = QtCore.QSize(750, 550)
+            pixmap_1 = QtGui.QPixmap(report_path_1)
+            self.report_label_1.set_pixmap(pixmap_1, size)
+            self.report_label_1.setAlignment(QtCore.Qt.AlignCenter)
+            self.report_label_1.show()
         return
+    
+    def refresh_tab5(self):
+        report_path = os.path.join(self.projectField.text(), "Report/")
+        figures = pathlib.Path(report_path).glob("*/*.png")
+        self.report_figures = [str(figure).replace(report_path, "") for figure in figures]
+        
+        self.report_dropdown.clear()
+        self.report_dropdown.addItems(self.report_figures)
+    
+    def open_report_folder(self):
+        report_path = os.path.join(self.projectField.text(), "Report")
+        
+        # check if the report path exists
+        if report_path is None or not os.path.exists(report_path):
+            return
+        
+        path = os.path.realpath(report_path)
+            
+        # Open the directory in the file explorer
+        if os.name == 'nt':
+            os.startfile(path)
+        elif sys.platform == 'darwin':
+            os.system(f'open "{path}"')
+        else:
+            os.system(f'xdg-open "{path}"')
+            
 
     def setup_tab5_elements(self):
         self.tab5 = QtWidgets.QWidget()
@@ -856,20 +886,42 @@ class Ui_ChronoRootAnalysis:
 
         # Create the image labels
         self.report_label_1 = AspectRatioLabel()
-        self.report_label_1.setMaximumSize(750, 750)
+        self.report_label_1.setMaximumSize(750, 550)
         self.report_label_1.setObjectName("report_label_1") 
 
         self.refresh_button_tab5 = QPushButton(self.tab5)
         self.refresh_button_tab5.setObjectName("Refresh_5")
-        self.refresh_button_tab5.clicked.connect(self.update_report_labels)
+        self.refresh_button_tab5.clicked.connect(self.refresh_tab5)
+        
+        # create a menu to select the report
+        self.report_dropdown = QComboBox(self.tab5)
+        self.report_dropdown.setGeometry(QtCore.QRect(10, 10, 161, 31))
+        self.report_dropdown.setObjectName("report_dropdown")
+        self.report_dropdown.currentIndexChanged.connect(self.update_report_labels)
+        
+        self.open_path_button = QPushButton(self.tab5)
+        self.open_path_button.setObjectName("Open Path")
+        self.open_path_button.clicked.connect(self.open_report_folder)
 
         # Set up the main layout
         layout = QVBoxLayout()
-        layout.addWidget(self.report_label_1)
-        layout.addWidget(self.refresh_button_tab5)
+        
+        horizontal_layout_top = QHBoxLayout()
+        horizontal_layout_top.addWidget(self.report_label_1, 1)
+        horizontal_layout_top.setAlignment(QtCore.Qt.AlignCenter)
 
+        horizontal_layout = QHBoxLayout()
+        horizontal_layout.addWidget(self.report_dropdown, 3)
+        horizontal_layout.addWidget(self.open_path_button, 1)
+        horizontal_layout.addWidget(self.refresh_button_tab5, 1)
+        horizontal_layout.setAlignment(QtCore.Qt.AlignCenter)
+                
+        layout.addLayout(horizontal_layout_top)
+        layout.addLayout(horizontal_layout)
+        
         self.tab5.setLayout(layout) 
-
+        self.update_report_labels()
+        
     def retranslate_ui(self, ChronoRootAnalysis):
         _translate = QtCore.QCoreApplication.translate
         
