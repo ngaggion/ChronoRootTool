@@ -433,8 +433,8 @@ def makeLateralAnglesPlots(conf):
 
     ax.set_title('Mean emergence angle')
 
-    plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.png'), dpi = 300)
-    plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.svg'), dpi = 300)
+    plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.png'), dpi = 300, bbox_inches='tight')
+    plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.svg'), dpi = 300, bbox_inches='tight')
     
     performStatisticalAnalysisAngles(conf, frame, 'Mean emergence angle')
 
@@ -447,8 +447,8 @@ def makeLateralAnglesPlots(conf):
     plt.xlabel('Time (h)')
     plt.ylabel('Angle')
 
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.png'), dpi = 200)
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 200)
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.png'), dpi = 300, bbox_inches='tight')
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 300, bbox_inches='tight')
     
     plt.figure(figsize = (6, 4), dpi = 200)
     sns.lineplot(y = "Real", x = 'Time', hue = "Experiment", data = syncro, errorbar=None, estimator=np.count_nonzero)
@@ -456,8 +456,8 @@ def makeLateralAnglesPlots(conf):
     plt.ylabel('Number of first LR')
     plt.xlabel('Time elapsed since emergence (h)')
     
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Number.png'), dpi = 200)
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Number.svg'), dpi = 200)
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Number.png'), dpi = 300, bbox_inches='tight')
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Number.svg'), dpi = 300, bbox_inches='tight')
     
     performStatisticalAnalysisFirstLR(conf, syncro, 'First LR tip')
     

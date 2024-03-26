@@ -286,8 +286,8 @@ def makeFourierPlots(conf):
     f_ax4.plot(time, exp, color = 'red')
     f_ax4.plot(time, exp2, color = 'black')
 
-    plt.savefig(os.path.join(reportPath_fourier, "JointPlot.png"), dpi=300)
-    plt.savefig(os.path.join(reportPath_fourier, "JointPlot.svg"), dpi=300)
+    plt.savefig(os.path.join(reportPath_fourier, "JointPlot.png"), dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(reportPath_fourier, "JointPlot.svg"), dpi=300, bbox_inches='tight')
     
     makeIndividualFourierPlotsMR(conf)
     makeIndividualFourierPlotsTR(conf)
