@@ -857,6 +857,7 @@ class Ui_ChronoRootAnalysis:
         report_path = os.path.join(self.projectField.text(), "Report/")
         figures = pathlib.Path(report_path).glob("*/*.png")
         self.report_figures = [str(figure).replace(report_path, "") for figure in figures]
+        self.report_figures = sorted(self.report_figures, key=natural_keys)[::-1]
         
         self.report_dropdown.clear()
         self.report_dropdown.addItems(self.report_figures)

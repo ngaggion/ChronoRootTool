@@ -21,7 +21,8 @@ import pandas as pd
 import os
 import json
 from analysis.report import load_path, plot_individual_plant, mkdir, plot_info_all, get_atlases, plot_atlases
-from analysis.report import plot_convex_hull, performStatisticalAnalysis, performStatisticalAnalysisConvexHull
+from analysis.report import plot_combined_atlases, plot_convex_hull, performStatisticalAnalysis
+from analysis.report import performStatisticalAnalysisConvexHull
 from analysis.fourier_analysis import makeFourierPlots
 from analysis.lateral_angles import getAngles, makeLateralAnglesPlots
 
@@ -115,7 +116,7 @@ if __name__ == "__main__":
                 else:
                     at1, at2, at3 = atlases[-1]
                     plot_atlases(at1, at2, at3, reportPath_convex, exp_name)
-            
+
         # save dataframes to files
         all_data.to_csv(os.path.join(reportPath, 'Temporal_Data.csv'), index=False)
     else:
@@ -129,9 +130,11 @@ if __name__ == "__main__":
     if conf['doConvex']:
         convex_hull.to_csv(os.path.join(reportPath, 'Convex_Hull_Data.csv'), index=False)
         plot_convex_hull(reportPath_convex, convex_hull)
-        
+        plot_combined_atlases(reportPath_convex)
+
         convex_hull_parameters = ['Convex Hull Area', 'Lateral Root Area Density', 
-                                  'Total Root Area Density', 'Aspect Ratio', 'Height', 'Width']
+                                  'Total Root Area Density', 'Convex Hull Aspect Ratio', 
+                                  'Convex Hull Height', 'Convex Hull Width']
         
         for parameter in convex_hull_parameters:
             performStatisticalAnalysisConvexHull(conf, convex_hull, parameter)

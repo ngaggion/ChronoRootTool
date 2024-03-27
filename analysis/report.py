@@ -421,10 +421,10 @@ def get_atlases(psave, days = [6,7,8,9,10], rotateRoot = True):
         listas = list(zip(aspect_ratio_list, densidad_lateral_list, densidad_lateral_bbox_list, 
                           densidad_total_list, densidad_total_bbox_list, area_chull_list, 
                           area_bbox_list, width_list, height_list))
-        dataframe = pd.DataFrame(listas, columns =['Aspect Ratio','Lateral Root Area Density',
+        dataframe = pd.DataFrame(listas, columns =['Convex Hull Aspect Ratio','Lateral Root Area Density',
                                                    'Lateral Root Area Density BBOX','Total Root Area Density', 
                                                    'Total Root Area Density BBOX', 'Convex Hull Area', 
-                                                   'Bounding Box Area', 'Width', 'Height'])
+                                                   'Bounding Box Area', 'Convex Hull Width', 'Convex Hull Height'])
         dataframe['Day'] = dia
         frames.append(dataframe)
 
@@ -437,7 +437,7 @@ def get_atlases(psave, days = [6,7,8,9,10], rotateRoot = True):
 def plot_atlases(atlas, atlas2, atlasroot, savepath, name, day = None):
     plt.ioff()
 
-    plt.figure(figsize=(9, 6))
+    plt.figure(figsize=(9, 4))
 
     plt.subplot(1,3,1)
     plt.imshow(atlasroot, cmap='jet', vmin = 0, vmax = 25)
@@ -455,7 +455,9 @@ def plot_atlases(atlas, atlas2, atlasroot, savepath, name, day = None):
     plt.axis('off')
 
     if day is not None:
-        name = name + ' Day ' + str(day)
+        name = name + ' - Day: ' + str(day)
+    else:
+        name = name + ' - Last Day'
 
     plt.suptitle(name)
     
@@ -465,6 +467,46 @@ def plot_atlases(atlas, atlas2, atlasroot, savepath, name, day = None):
     plt.cla()
     plt.clf()
     plt.close('all')
+
+
+def plot_combined_atlases(folder):
+    images_per_day = {}
+    
+    separated = os.path.join(folder, 'Per Experiment')
+
+    for filename in os.listdir(separated):
+        name = filename.split('.')[0]
+        day = int(name.split(' ')[-1])
+
+        if day not in images_per_day:
+            images_per_day[day] = [filename]
+        else:
+            images_per_day[day].append(filename)
+    
+    for day in images_per_day:
+        images = images_per_day[day]
+        images.sort(key=natural_key)
+
+        fig, axs = plt.subplots(len(images), 1, figsize=(9, 4*len(images)))
+
+        for i, image in enumerate(images):
+            image_path = os.path.join(separated, image)
+            img = cv2.imread(image_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            axs[i].imshow(img)
+            axs[i].axis('off')
+            axs[i].set_title('')
+
+        # remove all padding
+        plt.subplots_adjust(wspace=0, hspace=0)
+
+        plt.savefig(os.path.join(folder, 'Qualitative - Day ' + str(day)), dpi = 300, bbox_inches = 'tight')
+        plt.cla()
+        plt.clf()
+        plt.close('all')
+
+    return
+        
 
 def plot_convex_hull(savepath, frame, name = ''):
     plt.ioff()
@@ -510,9 +552,9 @@ def plot_convex_hull(savepath, frame, name = ''):
 
     fig, ax = plt.subplots()
     
-    sns.violinplot(x = 'Day', y = 'Aspect Ratio', data=frame, hue = 'Experiment', inner=None, 
+    sns.violinplot(x = 'Day', y = 'Convex Hull Aspect Ratio', data=frame, hue = 'Experiment', inner=None, 
                     showmeans=True, zorder=2, legend = False)
-    ax = sns.swarmplot(x = 'Day', y = 'Aspect Ratio', data=frame, hue = 'Experiment', dodge= True, 
+    ax = sns.swarmplot(x = 'Day', y = 'Convex Hull Aspect Ratio', data=frame, hue = 'Experiment', dodge= True, 
                 size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2)
 
     handles, labels = ax.get_legend_handles_labels()
@@ -521,8 +563,8 @@ def plot_convex_hull(savepath, frame, name = ''):
     ax.set_title('Aspect Ratio')
     ax.set_ylabel('Aspect Ratio (height/width)')
 
-    plt.savefig(os.path.join(savepath, "Aspect Ratio.png"), dpi = 300, bbox_inches = 'tight')
-    plt.savefig(os.path.join(savepath, "Aspect Ratio.svg"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Aspect Ratio.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Aspect Ratio.svg"), dpi = 300, bbox_inches = 'tight')
 
     fig, ax = plt.subplots()
     
@@ -549,9 +591,9 @@ def plot_convex_hull(savepath, frame, name = ''):
     
     hue_order = frame['Experiment'].unique()
 
-    sns.violinplot(x = 'Day', y = 'Width', data=frame2, hue = 'Experiment', inner=None, 
+    sns.violinplot(x = 'Day', y = 'Convex Hull Width', data=frame2, hue = 'Experiment', inner=None, 
                     showmeans=True, zorder=2, legend = False, hue_order = hue_order)
-    ax = sns.swarmplot(x = 'Day', y = 'Width', data=frame2, hue = 'Experiment', dodge= True, 
+    ax = sns.swarmplot(x = 'Day', y = 'Convex Hull Width', data=frame2, hue = 'Experiment', dodge= True, 
                 size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
                 hue_order = hue_order)
 
@@ -561,16 +603,16 @@ def plot_convex_hull(savepath, frame, name = ''):
     ax.set_title('Convex Hull Width')
     ax.set_ylabel('Width (mm)')
 
-    plt.savefig(os.path.join(savepath, "Width.png"), dpi = 300, bbox_inches = 'tight')
-    plt.savefig(os.path.join(savepath, "Width.svg"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Width.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Width.svg"), dpi = 300, bbox_inches = 'tight')
 
     fig, ax = plt.subplots()
     
     hue_order = frame['Experiment'].unique()
 
-    sns.violinplot(x = 'Day', y = 'Height', data=frame2, hue = 'Experiment', inner=None, 
+    sns.violinplot(x = 'Day', y = 'Convex Hull Height', data=frame2, hue = 'Experiment', inner=None, 
                     showmeans=True, zorder=2, legend = False, hue_order = hue_order)
-    ax = sns.swarmplot(x = 'Day', y = 'Height', data=frame2, hue = 'Experiment', dodge= True, 
+    ax = sns.swarmplot(x = 'Day', y = 'Convex Hull Height', data=frame2, hue = 'Experiment', dodge= True, 
                 size = 4, palette = 'muted', edgecolor='black', linewidth = 0.5, zorder=1, s = 2, 
                 hue_order = hue_order)
 
@@ -580,8 +622,8 @@ def plot_convex_hull(savepath, frame, name = ''):
     ax.set_title('Convex Hull Height')
     ax.set_ylabel('Height (mm)')
 
-    plt.savefig(os.path.join(savepath, "Height.png"), dpi = 300, bbox_inches = 'tight')
-    plt.savefig(os.path.join(savepath, "Height.svg"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Height.png"), dpi = 300, bbox_inches = 'tight')
+    plt.savefig(os.path.join(savepath, "Convex Hull Height.svg"), dpi = 300, bbox_inches = 'tight')
     
     plt.cla()
     plt.clf()
@@ -590,10 +632,10 @@ def plot_convex_hull(savepath, frame, name = ''):
     # Group data by Day and Experiment, then calculate mean and standard deviation for each metric
     summary_data = frame.groupby(['Day', 'Experiment']).agg({'Convex Hull Area': ['mean', 'std'],
                                                             'Lateral Root Area Density': ['mean', 'std'],
-                                                            'Aspect Ratio': ['mean', 'std'],
+                                                            'Convex Hull Aspect Ratio': ['mean', 'std'],
                                                             'Total Root Area Density': ['mean', 'std'],
-                                                            'Width': ['mean', 'std'],
-                                                            'Height': ['mean', 'std']})
+                                                            'Convex Hull Width': ['mean', 'std'],
+                                                            'Convex Hull Height': ['mean', 'std']})
 
     # Flatten the multi-index columns for better readability
     summary_data.columns = [' '.join(col).strip() for col in summary_data.columns.values]
@@ -605,10 +647,10 @@ def plot_convex_hull(savepath, frame, name = ''):
     summary_data.columns = ['Day', 'Experiment', 
                             'Convex Hull Area Mean', 'Convex Hull Area Std',
                             'Lateral Root Area Density Mean', 'Lateral Root Area Density Std',
-                            'Aspect Ratio Mean', 'Aspect Ratio Std',
+                            'Convex Hull Aspect Ratio Mean', 'Convex Hull Aspect Ratio Std',
                             'Total Root Area Density Mean', 'Total Root Area Density Std',
-                            'Width Mean', 'Width Std',
-                            'Height Mean', 'Height Std']
+                            'Convex Hull Width Mean', 'Convex Hull Width Std',
+                            'Convex Hull Height Mean', 'Convex Hull Height Std']
     
     summary_data = summary_data.round(3)
 
