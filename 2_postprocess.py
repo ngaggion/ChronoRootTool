@@ -31,6 +31,8 @@ if __name__ == "__main__":
 
     varieties = load_path(analysis, '*')
 
+    print('Post processing started.')
+    
     for variety in varieties:
         print('Processing ' + variety)
         rpi = load_path(variety, '*')
@@ -99,4 +101,4 @@ if __name__ == "__main__":
 
                     getAngles(conf, results)
 
-    print('Done')
+    print('Post processing finished.')

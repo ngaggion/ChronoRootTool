@@ -67,9 +67,20 @@ def performStatisticalAnalysis(conf, all_frames, type = 'Mean', signal = "MR"):
 
 def growthSpeedsSyncro(frame, N0 = None, N = None, normalize = False, detrend = False, root = 'MainRootLengthGrad (mm/h)', medfilt=False):
     grads_post = []
-    
+    dataframes = []
+    Ns = []
+
     for i in range(0, len(frame)):
         data = pd.read_csv(frame[i])
+        time = data['ElapsedTime (h)'].to_numpy().astype('int')
+        Ns.append(len(time))
+        dataframes.append(data)
+    
+    # Find the minimum N
+    N_min = min(Ns)
+
+    for i in range(0, len(frame)):
+        data = dataframes[i]
 
         data['Plant'] = i
         time = data['ElapsedTime (h)'].to_numpy().astype('int')
@@ -78,7 +89,7 @@ def growthSpeedsSyncro(frame, N0 = None, N = None, normalize = False, detrend = 
         if N0 is None:
             N0 = 0
         if N is None:
-            N = len(time)
+            N = N_min
                 
         # remove the first measurements before the new day
         if newDay[N0] != 0:
@@ -152,8 +163,8 @@ def process(signal, time, N0, N):
 
 
 def readData(experiments, normalize = False, detrend = False, root = 'MainRootLengthGrad (mm/h)', medfilt=False):
-    dfs = []
-    fouriers = []
+    signals = {}
+    times = []
 
     for exp in experiments:
         plants = load_path(exp, '*/*/*')
@@ -168,8 +179,18 @@ def readData(experiments, normalize = False, detrend = False, root = 'MainRootLe
             speeds.append(os.path.join(results, "PostProcess_Hour.csv"))
 
         signal1, time, v = growthSpeedsSyncro(speeds, normalize = normalize, detrend = detrend, root = root, medfilt=medfilt)
-        N0 = 0
-        N = len(time)
+        signals[exp] = signal1
+        times.append(time)
+
+    N0 = 0
+    N = min([len(t) for t in times])
+    
+    dfs = []
+    fouriers = []
+
+    for exp in experiments:
+        signal1 = signals[exp]
+    
         df, fourier = process(signal1, time, N0, N)
         df['Type'] = exp.split('/')[-1]
 
