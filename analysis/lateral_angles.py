@@ -10,6 +10,9 @@ import pandas as pd
 import os
 from .report import load_path as loadPath
 
+# ignore warnings from pandas
+pd.options.mode.chained_assignment = None  # default='warn'
+
 def recorrerRaiz(raiz, LR = False):
     if LR:
         raiz = raiz[0]
@@ -281,8 +284,6 @@ def dataWork(data, d0, h0, dend, hend):
     
     data2 = data2.astype('float')
     
-    print(data2.colums)
-
     return data2
 
 import seaborn as sns
@@ -308,8 +309,6 @@ def getFirstLateralRoots(conf, df):
     
     plantas = df['Plant_id'].unique()
     
-    print("Synchronizing 1st LR tip")
-    
     # Add a column to the dataframe to store if the datapoint is original or extended
     df['Real'] = 1
 
@@ -318,24 +317,24 @@ def getFirstLateralRoots(conf, df):
 
     for planta in plantas:
         p = df[df['Plant_id']==str(planta)]
-        p = p[p['First LR tip'] > 0]
+        idx = p['First LR tip'] > 0
+        p = p.loc[idx]
         k = p.shape[0]
         
         if k > 0:
             p = avoidIncreasingValues(p, 'First LR tip')
-            
+            p = p.iloc[:s, :]
+
             while k < s:
-                aux = p.iloc[-1, :].copy()
+                aux = p.iloc[-1, :]
                 aux = aux.to_frame().T
                 if aux.shape[0] != 1 or aux.shape[1] != 11:
                     print(p.shape, aux.shape)
                     raise ValueError('Extending 1st LR Error')
-                aux['Real'] = 0
+                aux['Real'] = np.nan
                 p = pd.concat([p, aux], ignore_index=True)
                 k = k+1
-            else:
-                p = p.iloc[:72, :]
-            
+                
             p = p.reset_index()
             p['Time'] = p.index
             p = p.drop(['index'], axis = 1)
@@ -351,15 +350,13 @@ def makeLateralAnglesPlots(conf):
     parent_folder = conf['MainFolder']
     analysis = os.path.join(conf['MainFolder'], "Analysis")
     experiments = loadPath(analysis, '*')
-    limit = conf['Limit']
+    
     reportPath = os.path.join(parent_folder, 'Report')
     reportPath_angle = os.path.join(reportPath, 'Angles Analysis')
     os.makedirs(reportPath_angle, exist_ok=True)
     
     all_data = pd.DataFrame()
-    
-    print('Angles report')
-    
+        
     if os.path.exists(os.path.join(reportPath, 'LateralRootsData.csv')):
         all_data = pd.read_csv(os.path.join(reportPath, 'LateralRootsData.csv'))
         all_data['Experiment'] = all_data['Experiment'].astype('str')
@@ -437,9 +434,10 @@ def makeLateralAnglesPlots(conf):
     plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.svg'), dpi = 300, bbox_inches='tight')
     
     performStatisticalAnalysisAngles(conf, frame, 'Mean emergence angle')
-
+    
     syncro = getFirstLateralRoots(conf, all_data)
     
+    """
     plt.figure(figsize = (6, 4), dpi = 200)
 
     sns.lineplot(y = "First LR tip", x = 'Time', hue = "Experiment", data = syncro, errorbar='se')
@@ -447,9 +445,10 @@ def makeLateralAnglesPlots(conf):
     plt.xlabel('Time (h)')
     plt.ylabel('Angle')
 
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.png'), dpi = 300, bbox_inches='tight')
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 300, bbox_inches='tight')
-    
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay (Copy).png'), dpi = 300, bbox_inches='tight')
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay (Copy).svg'), dpi = 300, bbox_inches='tight')
+    """
+
     plt.figure(figsize = (6, 4), dpi = 200)
     sns.lineplot(y = "Real", x = 'Time', hue = "Experiment", data = syncro, errorbar=None, estimator=np.count_nonzero)
     plt.title('Number of plant with first LR roots per experiment')
@@ -459,8 +458,20 @@ def makeLateralAnglesPlots(conf):
     plt.savefig(os.path.join(reportPath_angle, 'First LR Number.png'), dpi = 300, bbox_inches='tight')
     plt.savefig(os.path.join(reportPath_angle, 'First LR Number.svg'), dpi = 300, bbox_inches='tight')
     
-    performStatisticalAnalysisFirstLR(conf, syncro, 'First LR tip')
-    
+    syncro.dropna(inplace=True)
+
+    plt.figure(figsize = (6, 4), dpi = 200)
+    sns.lineplot(y = "First LR tip", x = 'Time', hue = "Experiment", data = syncro, errorbar='se')
+    plt.title('Decay of the tip angle (1st LR)')
+    plt.xlabel('Time (h)')
+    plt.ylabel('Angle')
+
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.png'), dpi = 300, bbox_inches='tight')
+    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 300, bbox_inches='tight')
+
+    performStatisticalAnalysisFirstLR(conf, syncro.copy(), 'First LR tip')
+    performStatisticalAnalysisFirstLR(conf, syncro.copy(), 'First LR tip', True)
+
 import scipy.stats as stats
 
 def performStatisticalAnalysisAngles(conf, data, metric):
@@ -519,7 +530,7 @@ def performStatisticalAnalysisAngles(conf, data, metric):
     return
 
 
-def performStatisticalAnalysisFirstLR(conf, data, metric):
+def performStatisticalAnalysisFirstLR(conf, data, metric, average_per_plant = False):
     data['Experiment'] = data['Experiment'].astype(str)    
     UniqueExperiments = data['Experiment'].unique()
     N_exp = int(len(UniqueExperiments))
@@ -531,7 +542,10 @@ def performStatisticalAnalysisFirstLR(conf, data, metric):
         reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric.replace('/',' over '))
     else:
         reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric)
-        
+    
+    if average_per_plant:
+        reportPath_stats = reportPath_stats.replace('.txt', ' (mean per plant).txt')
+
     # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
     with open(reportPath_stats, 'w') as f:
         f.write('Using Mann Whitney U test to compare different experiments\n')
@@ -546,11 +560,15 @@ def performStatisticalAnalysisFirstLR(conf, data, metric):
             hours = np.arange(hour, end)
             subdata = data[data['Time'].isin(hours)]
 
+            if average_per_plant:
+                subdata[metric] = subdata[metric].astype(float)
+                subdata = subdata.groupby(['Experiment', 'Plant_id']).mean().reset_index()
+
             for i in range(0, N_exp-1):
                 for j in range(i+1, N_exp):
                     exp1 = subdata[subdata['Experiment'] == UniqueExperiments[i]][metric]
-                    exp2 = subdata[subdata['Experiment'] == UniqueExperiments[j]][metric]
-                    
+                    exp2 = subdata[subdata['Experiment'] == UniqueExperiments[j]][metric]                        
+
                     # Perform Mann-Whitney U test
                     try:
                         if len(exp1) == 0 or len(exp2) == 0:
@@ -558,9 +576,13 @@ def performStatisticalAnalysisFirstLR(conf, data, metric):
                             
                         U, p = stats.mannwhitneyu(exp1, exp2)
                         p = round(p, 6)
+
+                        # Write the number of samples in each experiment, both in the same line
+                        f.write('Number of samples ' + UniqueExperiments[i] + ': ' + str(len(exp1)) + ' - ')
+                        f.write('Number of samples ' + UniqueExperiments[j] + ': ' + str(len(exp2)) + '\n')
                         
                         # Write the mean value of each experiment
-                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + ' - ')
                         f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
                         
                         # Compare the p-value with the significance level
@@ -570,6 +592,7 @@ def performStatisticalAnalysisFirstLR(conf, data, metric):
                             f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are not significantly different. P-value: ' + str(p) + '\n')
                     except:
                         f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' could not be compared\n')
-                        
+
+                    f.write('\n')    
             f.write('\n')            
     return

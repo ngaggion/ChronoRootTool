@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from analysis.dataWork import dataWork
 from analysis.qr import qr_detect, get_pixel_size, load_path
 from analysis.report import plot_individual_plant
+from analysis.lateral_angles import getAngles
 
 import json
 import os 
@@ -95,5 +96,7 @@ if __name__ == "__main__":
 
                     name = variety.split('/')[-1] + '_' + rpi.split('/')[-1] + '_' + cam.split('/')[-1] + '_' + plant.split('/')[-1]
                     plot_individual_plant(results, data, name)
+
+                    getAngles(conf, results)
 
     print('Done')

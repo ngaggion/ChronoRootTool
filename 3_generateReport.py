@@ -24,7 +24,7 @@ from analysis.report import load_path, plot_individual_plant, mkdir, plot_info_a
 from analysis.report import plot_combined_atlases, plot_convex_hull, performStatisticalAnalysis
 from analysis.report import performStatisticalAnalysisConvexHull
 from analysis.fourier_analysis import makeFourierPlots
-from analysis.lateral_angles import getAngles, makeLateralAnglesPlots
+from analysis.lateral_angles import makeLateralAnglesPlots
 
 if __name__ == "__main__":
     conf = json.load(open('config.json'))
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     convex_hull = pd.DataFrame()
     reportPath_convex = os.path.join(reportPath, 'Convex Hull and Area Analysis')
 
-    print("Report generation")
+    print("Report generation began. This may take a while.")
     
     FORCE_REPORT = True
     
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     if not os.path.exists(os.path.join(reportPath, 'Temporal_Data.csv')) or FORCE_REPORT:
         for exp in experiments:
             exp_name = exp.replace(analysis, '').replace('/','')
-            print('Experiment:', exp_name)
+            print('Loading experiment:', exp_name)
 
             iplots = os.path.join(individual_plots_folder, exp_name)
             mkdir(iplots)
@@ -95,10 +95,8 @@ if __name__ == "__main__":
                         all_data = pd.concat([all_data, data], ignore_index=True)
                         plot_individual_plant(iplots, data, name)
 
-                        if conf['doLateralAngles']:
-                            getAngles(conf, results)
-
             if conf['doConvex']:
+                print("Performing convex hull analysis for experiment:", exp_name)
                 # Convex hull experiment
                 if not os.path.exists(reportPath_convex):
                     os.makedirs(reportPath_convex)
@@ -123,11 +121,14 @@ if __name__ == "__main__":
         all_data = pd.read_csv(os.path.join(reportPath, 'Temporal_Data.csv'))
         all_data['Experiment'] = all_data['Experiment'].astype(str)
 
+    print("Generating temporal parameter plots.")
     for parameter in temporal_parameters:
         performStatisticalAnalysis(conf, all_data, parameter)
     plot_info_all(os.path.join(reportPath, 'Temporal Parameters'), all_data)
 
+    
     if conf['doConvex']:
+        print("Generating convex hull and area analysis plots.")
         convex_hull.to_csv(os.path.join(reportPath, 'Convex_Hull_Data.csv'), index=False)
         plot_convex_hull(reportPath_convex, convex_hull)
         plot_combined_atlases(reportPath_convex)
@@ -139,11 +140,13 @@ if __name__ == "__main__":
         for parameter in convex_hull_parameters:
             performStatisticalAnalysisConvexHull(conf, convex_hull, parameter)
 
-    if conf['doFourier']:      
+    if conf['doFourier']:
+        print("Generating Fourier analysis plots.")      
         makeFourierPlots(conf)
     
     if conf['doLateralAngles']:
+        print("Generating lateral angles analysis plots.")
         makeLateralAnglesPlots(conf)
 
-    print("Report generation finished")
+    print("Report generation finished.")
     
