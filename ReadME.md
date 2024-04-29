@@ -1,8 +1,31 @@
 # ChronoRoot 2.0
 
-## ChronoRoot Docker Image
+ChronoRoot2.0 consists of two different stages: the segmentation method, which is performed using the state-of-the-art segmentation method [nnUNet](https://github.com/MIC-DKFZ/nnUNet), and a user interface to perform the plant root phenotyping procedure and report generation.
 
-This Docker image provides an environment for running ChronoRoot, along with GPU support and X11 forwarding.
+Thus, it consists of two different conda environments which can be installed separately, or used with the docker image provided below.
+
+## Local Installation of ChronoRootInterface
+
+With anaconda and pip packages:
+
+```bash
+conda create -y -n ChronoRootInterface python=3.8
+conda activate ChronoRootInterface
+conda install -c "conda-forge/label/cf202003" graph-tool=2.29 pyqt=5.9.2
+conda install numpy scikit-image pandas seaborn
+conda install -c conda-forge pyzbar
+pip install opencv-python
+```
+
+Or using the environment.yml file present in this repo.
+
+## Local Installation of nnUNet
+
+As minor modifications where included in the nnUNet repo, to allow soft dense segmentation outputs which are used in the temporal post-processing steps, please follow the instructions from the following repo: [github.com/ngaggion/nnUNet](https://github.com/ngaggion/nnUNet)
+
+## Combined ChronoRoot Docker Image
+
+This Docker image provides an environment for running ChronoRoot completely, both for segmentation and with the user interface, along with GPU support and X11 forwarding.
 
 ### Usage
 
@@ -26,6 +49,12 @@ docker run -it --gpus all \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     chronoroot_full:latest
+```
+
+It's recommended to always pull from the repo when starting the docker.
+
+```bash
+git pull
 ```
 
 After using the container, it's recommended to restrict access to the X server with the following command:
