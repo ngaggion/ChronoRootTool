@@ -1,6 +1,5 @@
 config.json
-__init__.py
-__pycache__
-analysis/__pycache__
-TestAnglesFigures.ipynb
+*__pycache__
+*.ipynb
 local.sh
+ChronoRoot.sh
