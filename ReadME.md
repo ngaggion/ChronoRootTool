@@ -17,11 +17,38 @@ conda install -c conda-forge pyzbar
 pip install opencv-python
 ```
 
+### Usage
+
+```bash
+conda activate ChronoRootInterface
+python run.py
+```
+
 Or using the environment.yml file present in this repo.
 
 ## Local Installation of nnUNet
 
 As minor modifications where included in the nnUNet repo, to allow soft dense segmentation outputs which are used in the temporal post-processing steps, please follow the instructions from the following repo: [github.com/ngaggion/nnUNet](https://github.com/ngaggion/nnUNet)
+
+### Usage
+
+The segmentation pipeline requires to download nnUNet models and data first, [available here](https://huggingface.co/datasets/ngaggion/ChronoRoot_nnUNet) inside "Segmentation" folder. Please note that we also provide the segmentation dataset, which can be enhanced by adding extra annotations to fineture your models easily following the nnUNet instructions.
+
+You will need [git-lfs](https://git-lfs.com/) to clone the dataset from HuggingFace, follow the instructions to install then run:
+
+```bash
+cd Segmentation
+git lfs install
+git clone https://huggingface.co/datasets/ngaggion/ChronoRoot_nnUNet
+```
+
+To run the segmentation scripts, modify the bash file with the paths to your videos, individually. An example is provided.
+
+```bash
+cd Segmentation
+conda activate nnUNet
+./segment.sh
+```
 
 ## Combined ChronoRoot Docker Image
 
@@ -44,8 +71,10 @@ xhost +local:docker
 Then, run the Docker container with the following command:
 
 ```bash
+MOUNT="YOUR_LOCAL_INFORMATION_PATH"
+
 docker run -it --gpus all \
-    -v /media/ngaggion/DATA/Raices:/DATA/Raices \
+    -v $MOUNT:/DATA/ \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     chronoroot_full:latest
