@@ -3,3 +3,4 @@ config.json
 *.ipynb
 local.sh
 ChronoRoot.sh
+Segmentation/ChronoRoot_nnUNet

@@ -1,12 +1,10 @@
 # ChronoRoot 2.0
 
-ChronoRoot2.0 consists of two different stages: the segmentation method, which is performed using the state-of-the-art segmentation method [nnUNet](https://github.com/MIC-DKFZ/nnUNet), and a user interface to perform the plant root phenotyping procedure and report generation.
-
-Thus, it consists of two different conda environments which can be installed separately, or used with the docker image provided below.
+ChronoRoot 2.0 is a comprehensive tool for plant root phenotyping, comprising two distinct stages: segmentation using the state-of-the-art method [nnUNet](https://github.com/MIC-DKFZ/nnUNet), and a user interface for conducting the phenotyping procedure and generating reports. It offers flexibility for local installation or can be utilized through a Docker image.
 
 ## Local Installation of ChronoRootInterface
 
-With anaconda and pip packages:
+To install the ChronoRoot interface locally using Anaconda and pip packages, follow these steps:
 
 ```bash
 conda create -y -n ChronoRootInterface python=3.8
@@ -17,24 +15,29 @@ conda install -c conda-forge pyzbar
 pip install opencv-python
 ```
 
+Alternatively, you can use the provided environment.yml file in the repository.
+
 ### Usage
+
+Activate the ChronoRootInterface environment:
 
 ```bash
 conda activate ChronoRootInterface
+```
+
+Then, run the interface:
+
+```bash
 python run.py
 ```
 
-Or using the environment.yml file present in this repo.
-
 ## Local Installation of nnUNet
 
-As minor modifications where included in the nnUNet repo, to allow soft dense segmentation outputs which are used in the temporal post-processing steps, please follow the instructions from the following repo: [github.com/ngaggion/nnUNet](https://github.com/ngaggion/nnUNet)
+For local installation of nnUNet, minor modifications were made to allow soft dense segmentation outputs for temporal post-processing. Follow the instructions in the repository [github.com/ngaggion/nnUNet](https://github.com/ngaggion/nnUNet) to set it up.
 
 ### Usage
 
-The segmentation pipeline requires to download nnUNet models and data first, [available here](https://huggingface.co/datasets/ngaggion/ChronoRoot_nnUNet) inside "Segmentation" folder. Please note that we also provide the segmentation dataset, which can be enhanced by adding extra annotations to fineture your models easily following the nnUNet instructions.
-
-You will need [git-lfs](https://git-lfs.com/) to clone the dataset from HuggingFace, follow the instructions to install then run:
+Before running the segmentation pipeline, download nnUNet models and data [available here](https://huggingface.co/datasets/ngaggion/ChronoRoot_nnUNet) inside the "Segmentation" folder. You'll need [git-lfs](https://git-lfs.com/) to clone the dataset from HuggingFace. Install git-lfs, then clone the dataset:
 
 ```bash
 cd Segmentation
@@ -42,7 +45,7 @@ git lfs install
 git clone https://huggingface.co/datasets/ngaggion/ChronoRoot_nnUNet
 ```
 
-To run the segmentation scripts, modify the bash file with the paths to your videos, individually. An example is provided.
+Modify the bash file with paths to your videos individually. An example is provided:
 
 ```bash
 cd Segmentation
