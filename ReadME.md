@@ -55,14 +55,14 @@ conda activate nnUNet
 
 ## Combined ChronoRoot Docker Image
 
-This Docker image provides an environment for running ChronoRoot completely, both for segmentation and with the user interface, along with GPU support and X11 forwarding.
+This Docker image provides an environment for running ChronoRoot completely, both for segmentation and with the user interface, along with GPU support and X11 forwarding. Please note that nnUNet is installed on the "base" environment, meanwhile the app is on "ChronoRootInterface" environment.
 
 ### Usage
 
 Download the Docker image from the Docker Hub repository by running:
 
 ```bash
-docker pull ngaggion/chronoroot_full:latest
+docker pull ngaggion/chronoroot:latest
 ```
 
 If you are planning to use the user interface, execute the following commands to allow Docker to access the local X server:
@@ -80,7 +80,7 @@ docker run -it --gpus all \
     -v $MOUNT:/DATA/ \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    chronoroot_full:latest
+    chronoroot:latest
 ```
 
 It's recommended to always pull from the repo when starting the docker.
@@ -97,7 +97,7 @@ xhost -local:docker
 
 ### Docker Usage Notes
 
-To enable GPU support within the Docker container, it's required to install the nvidia-docker2 package.
+To enable GPU support within the Docker container, it's required to install the nvidia-docker2 package. **Please note that we are using CUDA 11.8, given your GPU restrictions you may want to build your own image.** In this case, you'll need to modify **only** the first line of the Dockerfile using any official pytorch >= 2.0.0 docker image that works with your hardware and build it from scratch.
 
 For Ubuntu-based distributions please follow these steps:
 
