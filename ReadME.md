@@ -15,7 +15,15 @@ conda install -c conda-forge pyzbar
 pip install opencv-python
 ```
 
-Alternatively, you can use the provided environment.yml file in the repository.
+To perform Functional PCA on the temporal series, a different environment is needed, which can be created as follows:
+
+```bash
+conda create -n FDA
+conda activate FDA
+conda install -c conda-forge scikit-fda scipy pandas matplotlib seaborn ipykernel
+```
+
+This environment won't be directly used by the user, as it will be automatically called inside a subprocess when generating the report if necessary.
 
 ### Usage
 
@@ -77,6 +85,7 @@ Then, run the Docker container with the following command:
 MOUNT="YOUR_LOCAL_INFORMATION_PATH"
 
 docker run -it --gpus all \
+    --user $(id -u):$(id -g)
     -v $MOUNT:/DATA/ \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
@@ -97,7 +106,7 @@ xhost -local:docker
 
 ### Docker Usage Notes
 
-To enable GPU support within the Docker container, it's required to install the nvidia-docker2 package. **Please note that we are using CUDA 11.8, given your GPU restrictions you may want to build your own image.** In this case, you'll need to modify **only** the first line of the Dockerfile using any official pytorch >= 2.0.0 docker image that works with your hardware and build it from scratch.
+To enable GPU support within the Docker container, it's required to install the nvidia-docker2 package. **Please note that we are using CUDA 11.8, given your GPU restrictions you may want to build your own image.** In this case, you'll **only** need to modify the first line of the Dockerfile using any official pytorch >= 2.0.0 docker image that works with your hardware and build it from scratch.
 
 For Ubuntu-based distributions please follow these steps:
 

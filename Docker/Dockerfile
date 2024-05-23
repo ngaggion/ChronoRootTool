@@ -26,6 +26,10 @@ RUN /opt/conda/bin/conda create -y -n ChronoRootInterface python=3.8 \
     /opt/conda/envs/ChronoRootInterface/bin/pip install opencv-python && \
     echo "conda activate ChronoRootInterface" >> ~/.bashrc
 
+# Create and activate Conda environment for GUI Interface 
+RUN /opt/conda/bin/conda create -y -n FDA && \
+    /opt/conda/bin/conda install -y -n FDA -c conda-forge scikit-fda scipy pandas matplotlib seaborn ipykernel
+
 RUN /opt/conda/bin/conda clean -a -y
 
 # Clean up
@@ -49,3 +53,5 @@ RUN wget https://github.com/git-lfs/git-lfs/releases/download/v3.5.1/git-lfs-lin
 
 # Set working directory
 WORKDIR /app
+
+RUN git pull

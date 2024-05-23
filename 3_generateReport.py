@@ -22,9 +22,10 @@ import os
 import json
 from analysis.report import load_path, plot_individual_plant, mkdir, plot_info_all, get_atlases, plot_atlases
 from analysis.report import plot_combined_atlases, plot_convex_hull, performStatisticalAnalysis
-from analysis.report import performStatisticalAnalysisConvexHull
+from analysis.report import performStatisticalAnalysisConvexHull, generateTableTemporal
 from analysis.fourier_analysis import makeFourierPlots
 from analysis.lateral_angles import makeLateralAnglesPlots
+import subprocess
 
 if __name__ == "__main__":
     conf = json.load(open('config.json'))
@@ -125,7 +126,13 @@ if __name__ == "__main__":
     for parameter in temporal_parameters:
         performStatisticalAnalysis(conf, all_data, parameter)
     plot_info_all(os.path.join(reportPath, 'Temporal Parameters'), all_data)
-
+    generateTableTemporal(conf, all_data)
+    
+    if conf['doFPCA']:
+        command = [
+            "conda", "run", "-n", "FDA", "python", "analysis/fpca_analysis.py", "config.json", os.path.join(reportPath, 'Temporal_Data.csv')
+        ]
+        subprocess.run(command, check=True)
     
     if conf['doConvex']:
         print("Generating convex hull and area analysis plots.")

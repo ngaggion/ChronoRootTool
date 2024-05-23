@@ -35,7 +35,11 @@ class Ui_ChronoRootAnalysis:
         return QtWidgets.QFileDialog.getExistingDirectory(None, "Select Directory", options=options)
 
     def saveFieldsIntoJson(self):
-        json_path = os.path.join(os.getcwd(), "config.json")
+        json_path_1 = os.path.join(os.getcwd(), "config.json")
+        try:
+            json_path_2 = os.path.join(os.path.join(self.projectField.text(), "config.json"))
+        except:
+            pass
         data = {}
 
         for field in [self.rpiField, self.cameraField, self.plantField, self.processingLimitField, 
@@ -46,9 +50,12 @@ class Ui_ChronoRootAnalysis:
             if field.text() == "":
                 data[field.objectName()] = ""
                 
-        data.update({field.objectName(): field.text() for field in [self.identifierField, self.videoField, self.projectField]})
+        data.update({field.objectName(): field.text() for field in [self.identifierField, self.videoField, self.projectField,
+                                                                    self.everyXhourField, self.everyXhourFieldFourier, 
+                                                                    self.everyXhourFieldAngles, self.numComponentsFPCAField]})
         data.update({field.objectName(): field.isChecked() for field in [self.saveImagesButton, self.saveImagesConvex, 
-                                                                         self.doConvex, self.doFourier, self.doLateralAngles]})
+                                                                         self.doConvex, self.doFourier, self.doLateralAngles,
+                                                                         self.doFPCA, self.normFPCA, self.averagePerPlantStats]})
         
         data["daysConvexHull"] = self.daysConvexField.text()
         data["daysAngles"] = self.daysAnglesField.text()
@@ -70,15 +77,21 @@ class Ui_ChronoRootAnalysis:
         else:
             data['Limit'] = 0
 
-        with open(json_path, "w") as json_file:
+        with open(json_path_1, "w") as json_file:
             json.dump(data, json_file)
+        try:
+            with open(json_path_2, "w") as json_file:
+                json.dump(data, json_file)
+        except:
+            pass
 
     def loadJsonIntoFields(self):
         json_path = os.path.join(os.getcwd(), "config.json")
         data = json.load(open(json_path, 'r'))
 
         for field in [self.rpiField, self.cameraField, self.plantField, self.processingLimitField, 
-                      self.processingLimitField_3, self.emergenceDistanceField, self.captureIntervalField]:
+                      self.processingLimitField_3, self.emergenceDistanceField, self.captureIntervalField,
+                      self.everyXhourField, self.everyXhourFieldFourier, self.everyXhourFieldAngles, self.numComponentsFPCAField]:
             if field.objectName() in data:
                 field.setText(str(data[field.objectName()]))
 
@@ -86,7 +99,8 @@ class Ui_ChronoRootAnalysis:
             if field.objectName() in data:
                 field.setText(data[field.objectName()])
 
-        for field in [self.saveImagesButton, self.saveImagesConvex, self.doConvex, self.doFourier, self.doLateralAngles]:
+        for field in [self.saveImagesButton, self.saveImagesConvex, self.doConvex, self.doFourier, self.doLateralAngles,
+                      self.doFPCA, self.normFPCA, self.averagePerPlantStats]:
             if field.objectName() in data:
                 field.setChecked(data[field.objectName()])
 
@@ -450,7 +464,39 @@ class Ui_ChronoRootAnalysis:
         self.tab_widget.setObjectName("tabWidget")
         
         return
+
+    def read_config_from_file(self):
+        options = QtWidgets.QFileDialog.Options() | QtWidgets.QFileDialog.DontUseNativeDialog
+        file_filter = "JSON Files (*.json);;All Files (*)"
+        json_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Select Configuration File", "", file_filter, options=options)
     
+        if not json_path:
+            return  # If no file was selected, exit the function
+
+        with open(json_path, 'r') as file:
+            data = json.load(file)
+
+        for field in [self.rpiField, self.cameraField, self.plantField, self.processingLimitField, 
+                      self.processingLimitField_3, self.emergenceDistanceField, self.captureIntervalField,
+                      self.everyXhourField, self.everyXhourFieldFourier, self.everyXhourFieldAngles, self.numComponentsFPCAField]:
+            if field.objectName() in data:
+                field.setText(str(data[field.objectName()]))
+
+        for field in [self.identifierField, self.videoField, self.projectField]:
+            if field.objectName() in data:
+                field.setText(data[field.objectName()])
+
+        for field in [self.saveImagesButton, self.saveImagesConvex, self.doConvex, self.doFourier, self.doLateralAngles,
+                      self.doFPCA, self.normFPCA, self.averagePerPlantStats]:
+            if field.objectName() in data:
+                field.setChecked(data[field.objectName()])
+
+        if "daysConvexHull" in data:
+            self.daysConvexField.setText(str(data["daysConvexHull"]))
+        if "daysAngles" in data:
+            self.daysAnglesField.setText(str(data["daysAngles"]))
+
+
     def setup_tab1_elements(self):
 
         self.tab1 = QtWidgets.QWidget()
@@ -525,6 +571,11 @@ class Ui_ChronoRootAnalysis:
         self.PostProcessButton.setGeometry(QtCore.QRect(660, 300, 141, 81))
         self.PostProcessButton.setObjectName("PostProcessButton")
         self.PostProcessButton.clicked.connect(self.PostProcess)
+
+        self.loadConfigFileButton = QtWidgets.QPushButton(self.tab1)
+        self.loadConfigFileButton.setGeometry(QtCore.QRect(660, 400, 141, 81))
+        self.loadConfigFileButton.setObjectName("loadLastConfigButton")
+        self.loadConfigFileButton.clicked.connect(self.read_config_from_file)
 
         self.loadLastConfigButton = QtWidgets.QPushButton(self.tab1)
         self.loadLastConfigButton.setGeometry(QtCore.QRect(660, 500, 141, 81))
@@ -709,45 +760,125 @@ class Ui_ChronoRootAnalysis:
         font.setPointSize(10)
         font.setBold(True)
         font.setWeight(75)
-    
-        self.daysConvexField = QtWidgets.QLineEdit(self.tab4)
-        self.daysConvexField.setGeometry(QtCore.QRect(150, 120, 221, 31))
-        self.daysConvexField.setObjectName("daysConvexField")
+        
+        self.averagePerPlantStats = QtWidgets.QCheckBox(self.tab4)
+        self.averagePerPlantStats.setGeometry(QtCore.QRect(10, 70, 311, 31))
+        self.averagePerPlantStats.setFont(font)
+        self.averagePerPlantStats.setObjectName("averagePerPlantStats")
 
-        self.saveImagesConvex = QtWidgets.QCheckBox(self.tab4)
-        self.saveImagesConvex.setGeometry(QtCore.QRect(10, 170, 611, 31))
-        self.saveImagesConvex.setObjectName("saveImagesConvex")
+        self.everyXhourText = QtWidgets.QLabel(self.tab4)
+        self.everyXhourText.setGeometry(QtCore.QRect(370, 70, 241, 31))
+        self.everyXhourText.setObjectName("everyXhourText")
+
+        self.everyXhourField = QtWidgets.QLineEdit(self.tab4)
+        self.everyXhourField.setGeometry(QtCore.QRect(620, 70, 51, 31))
+        self.everyXhourField.setObjectName("everyXhourField")
+
+        self.reportText = QtWidgets.QLabel(self.tab4)
+        self.reportText.setGeometry(QtCore.QRect(10, 110, 810, 31))
+        self.reportText.setObjectName("reportText")
+
+        self.doFPCA = QtWidgets.QCheckBox(self.tab4)
+        self.doFPCA.setGeometry(QtCore.QRect(10, 150, 311, 31))
+        self.doFPCA.setFont(font)
+        self.doFPCA.setObjectName("doFPCA")
+
+        self.normFPCA = QtWidgets.QCheckBox(self.tab4)
+        self.normFPCA.setGeometry(QtCore.QRect(340, 150, 221, 31))
+        self.normFPCA.setObjectName("normFPCA")
+
+        self.numComponentsFPCAText = QtWidgets.QLabel(self.tab4)
+        self.numComponentsFPCAText.setGeometry(QtCore.QRect(570, 150, 200, 31))
+        self.numComponentsFPCAText.setObjectName("numComponentsFPCAText")
+
+        self.numComponentsFPCAField = QtWidgets.QLineEdit(self.tab4)
+        self.numComponentsFPCAField.setGeometry(QtCore.QRect(730, 150, 51, 31))
+        self.numComponentsFPCAField.setObjectName("numComponentsFPCAField")
+
+        self.line_4 = QtWidgets.QFrame(self.tab4)
+        self.line_4.setGeometry(QtCore.QRect(-40, 170, 891, 41))
+        self.line_4.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line_4.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line_4.setObjectName("line_4")
 
         self.doConvex = QtWidgets.QCheckBox(self.tab4)
-        self.doConvex.setGeometry(QtCore.QRect(10, 70, 301, 31))
+        self.doConvex.setGeometry(QtCore.QRect(10, 200, 201, 31))
         self.doConvex.setFont(font)
         self.doConvex.setObjectName("doConvex")
 
+        self.saveImagesConvex = QtWidgets.QCheckBox(self.tab4)
+        self.saveImagesConvex.setGeometry(QtCore.QRect(370, 200, 311, 31))
+        self.saveImagesConvex.setObjectName("saveImagesConvex")
+
+        self.daysFieldConvex = QtWidgets.QLabel(self.tab4)
+        self.daysFieldConvex.setGeometry(QtCore.QRect(10, 240, 131, 31))
+        self.daysFieldConvex.setObjectName("daysFieldConvex")
+
+        self.daysConvexField = QtWidgets.QLineEdit(self.tab4)
+        self.daysConvexField.setGeometry(QtCore.QRect(120, 240, 221, 31))
+        self.daysConvexField.setObjectName("daysConvexField")
+
+        self.daysConvexText = QtWidgets.QLabel(self.tab4)
+        self.daysConvexText.setGeometry(QtCore.QRect(350, 240, 351, 31))
+        self.daysConvexText.setObjectName("daysConvexText")
+
+        self.line_5 = QtWidgets.QFrame(self.tab4)
+        self.line_5.setGeometry(QtCore.QRect(-40, 270, 891, 41))
+        self.line_5.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line_5.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line_5.setObjectName("line_5")
+
         self.doFourier = QtWidgets.QCheckBox(self.tab4)
-        self.doFourier.setGeometry(QtCore.QRect(10, 240, 601, 31))
+        self.doFourier.setGeometry(QtCore.QRect(10, 305, 451, 31))
         self.doFourier.setFont(font)
         self.doFourier.setObjectName("doFourier")
 
+        self.everyXhourTextFourier = QtWidgets.QLabel(self.tab4)
+        self.everyXhourTextFourier.setGeometry(QtCore.QRect(450, 305, 231, 31))
+        self.everyXhourTextFourier.setObjectName("everyXhourTextFourier")
+
+        self.everyXhourFieldFourier = QtWidgets.QLineEdit(self.tab4)
+        self.everyXhourFieldFourier.setGeometry(QtCore.QRect(680, 305, 51, 31))
+        self.everyXhourFieldFourier.setObjectName("everyXhourFieldFourier")
+
+        self.line_6 = QtWidgets.QFrame(self.tab4)
+        self.line_6.setGeometry(QtCore.QRect(-70, 330, 961, 41))
+        self.line_6.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line_6.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line_6.setObjectName("line_6")
+
         self.doLateralAngles = QtWidgets.QCheckBox(self.tab4)
-        self.doLateralAngles.setGeometry(QtCore.QRect(10, 310, 301, 31))
+        self.doLateralAngles.setGeometry(QtCore.QRect(10, 365, 301, 31))
         self.doLateralAngles.setFont(font)
         self.doLateralAngles.setObjectName("doLateralAngles")
 
+        self.emergenceDistanceText = QtWidgets.QLabel(self.tab4)
+        self.emergenceDistanceText.setGeometry(QtCore.QRect(370, 365, 131, 31))
+        self.emergenceDistanceText.setObjectName("emergenceDistanceText")
+
         self.emergenceDistanceField = QtWidgets.QLineEdit(self.tab4)
-        self.emergenceDistanceField.setGeometry(QtCore.QRect(150, 410, 51, 31))
+        self.emergenceDistanceField.setGeometry(QtCore.QRect(510, 365, 51, 31))
         self.emergenceDistanceField.setObjectName("emergenceDistanceField")
 
-        self.label_32 = QtWidgets.QLabel(self.tab4)
-        self.label_32.setGeometry(QtCore.QRect(10, 410, 161, 31))
-        self.label_32.setObjectName("label_32")
+        self.emergenceDistanceTextExp = QtWidgets.QLabel(self.tab4)
+        self.emergenceDistanceTextExp.setGeometry(QtCore.QRect(570, 365, 261, 31))
+        self.emergenceDistanceTextExp.setObjectName("emergenceDistanceTextExp")
 
-        self.label_33 = QtWidgets.QLabel(self.tab4)
-        self.label_33.setGeometry(QtCore.QRect(260, 410, 261, 31))
-        self.label_33.setObjectName("label_33")
+        self.daysAnglesText = QtWidgets.QLabel(self.tab4)
+        self.daysAnglesText.setGeometry(QtCore.QRect(10, 410, 131, 31))
+        self.daysAnglesText.setObjectName("daysAnglesText")
 
         self.daysAnglesField = QtWidgets.QLineEdit(self.tab4)
-        self.daysAnglesField.setGeometry(QtCore.QRect(150, 360, 221, 31))
+        self.daysAnglesField.setGeometry(QtCore.QRect(120, 410, 221, 31))
         self.daysAnglesField.setObjectName("daysAnglesField")
+
+        self.everyXhourTextAngles = QtWidgets.QLabel(self.tab4)
+        self.everyXhourTextAngles.setGeometry(QtCore.QRect(370, 410, 231, 31))
+        self.everyXhourTextAngles.setObjectName("everyXhourTextAngles")
+
+        self.everyXhourFieldAngles = QtWidgets.QLineEdit(self.tab4)
+        self.everyXhourFieldAngles.setGeometry(QtCore.QRect(620, 410, 51, 31))
+        self.everyXhourFieldAngles.setObjectName("everyXhourFieldAngles")
 
         self.PostProcessButton2 = QtWidgets.QPushButton(self.tab4)
         self.PostProcessButton2.setGeometry(QtCore.QRect(360, 480, 131, 81))
@@ -756,7 +887,7 @@ class Ui_ChronoRootAnalysis:
 
         self.reportButton = QtWidgets.QPushButton(self.tab4)
         self.reportButton.setGeometry(QtCore.QRect(510, 480, 131, 81))
-        self.reportButton.setObjectName("reportButton")
+        self.reportButton.setObjectName("re portButton")
         self.reportButton.clicked.connect(self.report)
 
         self.loadLastConfig2 = QtWidgets.QPushButton(self.tab4)
@@ -788,44 +919,23 @@ class Ui_ChronoRootAnalysis:
         self.processingLimitField_3.setObjectName("processingLimitField_3")
         self.processingLimitField_3.textChanged.connect(self.syncProcessingLimitField)
 
-        self.label_10 = QtWidgets.QLabel(self.tab4)
-        self.label_10.setGeometry(QtCore.QRect(10, 120, 131, 31))
-        self.label_10.setObjectName("label_10")
-        self.label_29 = QtWidgets.QLabel(self.tab4)
-        self.label_29.setGeometry(QtCore.QRect(380, 120, 351, 31))
-        self.label_29.setObjectName("label_29")
-        self.line_5 = QtWidgets.QFrame(self.tab4)
-        self.line_5.setGeometry(QtCore.QRect(-40, 200, 891, 41))
-        self.line_5.setFrameShape(QtWidgets.QFrame.HLine)
-        self.line_5.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.line_5.setObjectName("line_5")
-        self.line_6 = QtWidgets.QFrame(self.tab4)
-        self.line_6.setGeometry(QtCore.QRect(-70, 270, 961, 41))
-        self.line_6.setFrameShape(QtWidgets.QFrame.HLine)
-        self.line_6.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.line_6.setObjectName("line_6")
-        self.label_25 = QtWidgets.QLabel(self.tab4)
-        self.label_25.setGeometry(QtCore.QRect(10, 360, 131, 31))
-        self.label_25.setObjectName("label_25")
-        self.label_31 = QtWidgets.QLabel(self.tab4)
-        self.label_31.setGeometry(QtCore.QRect(380, 360, 351, 31))
-        self.label_31.setObjectName("label_31")
         self.line_7 = QtWidgets.QFrame(self.tab4)
         self.line_7.setGeometry(QtCore.QRect(0, 40, 891, 41))
         self.line_7.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_7.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_7.setObjectName("line_7")
-        self.label_44 = QtWidgets.QLabel(self.tab4)
-        self.label_44.setGeometry(QtCore.QRect(10, 530, 111, 31))
-        self.label_44.setObjectName("label_44")
-        self.label_43 = QtWidgets.QLabel(self.tab4)
-        self.label_43.setGeometry(QtCore.QRect(10, 480, 121, 31))
-        self.label_43.setObjectName("label_43")
         self.line_11 = QtWidgets.QFrame(self.tab4)
         self.line_11.setGeometry(QtCore.QRect(-30, 440, 961, 41))
         self.line_11.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_11.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_11.setObjectName("line_11")
+
+        self.captureIntervalLabel = QtWidgets.QLabel(self.tab4)
+        self.captureIntervalLabel.setGeometry(QtCore.QRect(10, 530, 111, 31))
+        self.captureIntervalLabel.setObjectName("captureIntervalLabel")
+        self.processingLimitLabel = QtWidgets.QLabel(self.tab4)
+        self.processingLimitLabel.setGeometry(QtCore.QRect(10, 480, 121, 31))
+        self.processingLimitLabel.setObjectName("processingLimitLabel")
 
         return
 
@@ -957,25 +1067,26 @@ class Ui_ChronoRootAnalysis:
             set_translation(self.label_27, "(in minutes, usually 15 minutes)")
             set_translation(self.label_28, "(useful to make growth videos, takes extra time and disk space)")
             set_translation(self.label_30, "<html><head/><body><p><span style=\" font-size:10pt; font-weight:600;\">Individual plant root analysis</span></p></body></html>")
-            set_translation(self.label_10, "Days to report")
-            set_translation(self.label_29, "(Should be numbers separated by commas, e.g. 5,7,9,11)")
-            set_translation(self.label_25, "Days to report")
-            set_translation(self.label_31, "(Should be numbers separated by commas, e.g. 5,7,9,11)")
-            set_translation(self.label_32, "Emergence distance")
-            set_translation(self.label_33, "(in millimeters, recommended 1 or 2 mm)")
-            set_translation(self.label_44, "<html><head/><body><p>Capture interval</p></body></html>")
-            set_translation(self.label_43, "<html><head/><body><p>Processing limit</p></body></html>")
-
+            set_translation(self.daysFieldConvex, "Days to report")
+            set_translation(self.daysConvexText, "(Numbers separated by commas)")
+            set_translation(self.daysAnglesText, "Days to report")
+            set_translation(self.emergenceDistanceText, "Emergence distance")
+            set_translation(self.emergenceDistanceTextExp, "(in millimeters, recommended: 2 mm)")
+            set_translation(self.captureIntervalLabel, "<html><head/><body><p>Capture interval</p></body></html>")
+            set_translation(self.processingLimitLabel, "<html><head/><body><p>Processing limit</p></body></html>")
+            
         def translate_buttons():
             set_translation(self.loadVideo, "Select Video Folder")
             set_translation(self.loadProject, "Select Project Folder")
             set_translation(self.saveButton, "Save")
+            set_translation(self.loadConfigFileButton, "Load\nconfig json\nfrom file")
             set_translation(self.loadLastConfigButton, "Load\nprevious\nconfiguration")
             set_translation(self.saveImagesButton, "Save Cropped Images")
             set_translation(self.analysisButton, "Analyze Plant")
             set_translation(self.previewAnalysisButton, "Preview video")
             set_translation(self.PostProcessButton, "Process\nall plants")
-            set_translation(self.saveImagesConvex, "Save images for each day (if unselected will only save them for the last day)")
+            set_translation(self.saveImagesConvex, "Save images for each day")
+            set_translation(self.doFPCA, "Perform Functional PCA on time series")
             set_translation(self.doConvex, "Do Convex hull analysis")
             set_translation(self.doFourier, "Evaluate Growth Speeds and perform Fourier Analysis")
             set_translation(self.doLateralAngles, "Do Lateral Root Angles Analysis")
@@ -988,7 +1099,14 @@ class Ui_ChronoRootAnalysis:
             set_translation(self.refresh_button_tab3, "Refresh")
             set_translation(self.refresh_button_tab5, "Refresh")
             set_translation(self.open_path_button, "Open Path")
-
+            set_translation(self.averagePerPlantStats, "Average intervals before testing")
+            set_translation(self.everyXhourText, "Time series stats interval (dt, in hours)")
+            set_translation(self.everyXhourTextFourier, "Speeds stats interval (dt, in hours)")
+            set_translation(self.everyXhourTextAngles, "First LR Tip Stats interval (dt, in hours)")
+            set_translation(self.reportText, "Hypothesis testing uses Mann-Whitney test every dt interval. If selected, an average value will be used, or a step (i*dt) otherwise")
+            set_translation(self.normFPCA, "Normalize FPCA Boxplots")
+            set_translation(self.numComponentsFPCAText, "Number of components")
+            
         def translate_tab_text():
             self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab1), _translate("ChronoRootAnalysis", "Plant Analysis"))
             self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab2), _translate("ChronoRootAnalysis", "Analysis Overview"))

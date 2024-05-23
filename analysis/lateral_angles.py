@@ -1,14 +1,14 @@
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import json
 import os
-import cv2
 import csv
-import re
 import pandas as pd
 import os
 from .report import load_path as loadPath
+import scipy.stats as stats
 
 # ignore warnings from pandas
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -195,7 +195,6 @@ def getAngles(conf, path):
                 ## Luego estimo los angulos
                 tips = []
                 emergs = []
-                lengths = []
 
                 for root in LateralRoots:
                     TipAngle = tipAngle(root)
@@ -215,79 +214,71 @@ def getAngles(conf, path):
     
     return
 
+def dataWork(df, firstDay, lastDay):
+    datetime_strings = df['Img'].str.extract(r'(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})')
+    datetime_strings.columns = ['Year', 'Month', 'Day', 'Hour', 'Minute']
+    datetime_strings = datetime_strings.astype(int)
 
-def dataWork(data, d0, h0, dend, hend):
-    for i in range(0, data.shape[0]):
-        name = data.loc[i, "Img"]
-        nums = re.findall(r'\d+', name)
-        dia = int(nums[2])
-        hora = int(nums[3])
-        minutos = int(nums[4])
+    df = df.drop(['Img'], axis=1)
 
-        data.loc[i, "Day"] = dia
-        data.loc[i, "Hour"] = hora
-        data.loc[i, "Minutes"] = minutos
+    # Convert Month, Day, Hour, and Minute columns to datetime
+    df['Date'] = pd.to_datetime(datetime_strings[['Year', 'Month', 'Day', 'Hour', 'Minute']])
+
+    # Columns to complete are: Number of lateral roots,Mean tip angle,Mean emergence angle,First LR tip,First LR emergence
     
-    data = data.drop(['Img'], axis=1)
-    data2 = pd.DataFrame(columns = data.columns[:-1])
-    
-    d1 = data['Day'][0]
-    h1 = data['Hour'][0]
-    
-    for dia in range(int(d0), int(d1)):
-        if dia == d0:
-            h_ini = int(h0)
-        else:
-            h_ini = 0
+    beginning = df['Date'].min()
 
-        for hora in range(h_ini, 24):
-            aux = pd.DataFrame([[0,0,0,0,0, dia, hora]], columns = data2.columns)
-            data2 = pd.concat([data2, aux], ignore_index=True)
+    # Please check if the beginning date is after or before the firstDay argument
+
+    if beginning < firstDay:
+        # drop the rows before the firstDay
+        df = df[df['Date'] >= firstDay]
+    elif beginning > firstDay:
+        # Complete the missing rows with 0s every 15 minutes until the firstDay
+        rows = pd.DataFrame()
+        rows['Date'] = pd.date_range(start=firstDay, end=beginning, freq='15T')
+        rows['Number of lateral roots'] = 0
+        rows['Mean tip angle'] = 0
+        rows['Mean emergence angle'] = 0
+        rows['First LR tip'] = 0
+        rows['First LR emergence'] = 0
+        df = pd.concat([rows, df], ignore_index=True)
+
+    end = df['Date'].max()
+
+    # Please check if the end date is after or before the lastDay argument
+
+    if end > lastDay:
+        # drop the rows after the lastDay
+        df = df[df['Date'] <= lastDay]
+    elif end < lastDay:
+        # Complete the missing rows repeating the last row every 15 minutes until the lastDay
+        rows = pd.DataFrame()
+        rows['Date'] = pd.date_range(start=end, end=lastDay, freq='15T')
+        rows['Number of lateral roots'] = df['Number of lateral roots'].iloc[-1]
+        rows['Mean tip angle'] = df['Mean tip angle'].iloc[-1]
+        rows['Mean emergence angle'] = df['Mean emergence angle'].iloc[-1]
+        rows['First LR tip'] = df['First LR tip'].iloc[-1]
+        rows['First LR emergence'] = df['First LR emergence'].iloc[-1]
+        
+        df = pd.concat([df, rows], ignore_index=True)
+
+    # Separate the Date column into Year, Month, Day, Hour, and Minute columns
+    columns = ['Year', 'Month', 'Day', 'Hour', 'Minute']
+    df[columns] = df['Date'].apply(lambda x: pd.Series(x.strftime("%Y-%m-%d-%H-%M").split("-")))
     
-    for hora in range(0, int(h1)):
-        aux = pd.DataFrame([[0,0,0,0,0, d1, hora]], columns = data2.columns)
-        data2 = pd.concat([data2, aux], ignore_index=True)
+    df = df.drop('Date', axis=1)
+    df = df.groupby(['Year', 'Month', 'Day', 'Hour']).mean().reset_index()
+    df = df.drop(['Year', 'Month'], axis=1)
     
-    if dend < d1:
-        dend = dend + data['Day'].max()
-
-        data['Day'] = data['Day'].apply(lambda x: x + data['Day'].max() if x < d1 else x)
-
-    for dia in range(int(d1), int(dend)+1):
-        if dia == d1:
-            h_ini = int(h1)
-        else:
-            h_ini = 0
-        if dia == dend:
-            h_end = hend + 1
-        else:
-            h_end = 24
-
-        for hora in range(h_ini, h_end):
-            aux = data[data['Day'] == dia]
-            aux = aux[aux['Hour'] == hora]
-            aux = aux.mean(0)[:-1]
-            
-            if aux.shape[0] == 10:
-                sub = data.iloc[-1, :].copy()
-                sub.iloc[-2] = dia
-                sub.iloc[-1] = hora
-                aux = sub
-            
-            # aux values to list
-            aux = aux.tolist()[:5] + [dia, hora]
-            aux = pd.DataFrame([aux], columns = data2.columns)
-            data2 = pd.concat([data2, aux], ignore_index=True)
-
-    data2['i'] = data2.index
-    data2['Day'] -= d0
+    df['Day'] = df['Day'].astype(int)
+    df['Hour'] = df['Hour'].astype(int)
     
-    data2 = data2.astype('float')
+    df['Day'] = df['Day'] - df['Day'].min()
+        
+    df = df.astype(float)
     
-    return data2
-
-import seaborn as sns
-import matplotlib.pyplot as plt
+    return df
 
 def avoidIncreasingValues(data, metric, tol = 0.3):
     # first perform a median filter to avoid spikes
@@ -323,12 +314,12 @@ def getFirstLateralRoots(conf, df):
         
         if k > 0:
             p = avoidIncreasingValues(p, 'First LR tip')
-            p = p.iloc[:s, :]
+            p = p.iloc[:(s+1), :]
 
-            while k < s:
+            while k <= s:
                 aux = p.iloc[-1, :]
                 aux = aux.to_frame().T
-                if aux.shape[0] != 1 or aux.shape[1] != 11:
+                if aux.shape[0] != 1 or aux.shape[1] != 10:
                     print(p.shape, aux.shape)
                     raise ValueError('Extending 1st LR Error')
                 aux['Real'] = np.nan
@@ -382,17 +373,13 @@ def makeLateralAnglesPlots(conf):
                 data2.dropna(inplace=True)
                 
                 date1 = data2.loc[0, "Date"]
-                # using pandas extract day and hour from date1
                 date1 = pd.to_datetime(date1)
-                d0, h0 = date1.day, date1.hour
 
                 date2 = data2.loc[data2.shape[0]-1, "Date"]
-                # using pandas extract day and hour from date2
                 date2 = pd.to_datetime(date2)
-                dend, hend = date2.day, date2.hour
                             
                 data = pd.read_csv(file)
-                data = dataWork(data, d0, h0, dend, hend)
+                data = dataWork(data, date1, date2)
 
                 data['Plant_id'] = plant_name
                 data['Experiment'] = exp_name
@@ -434,21 +421,18 @@ def makeLateralAnglesPlots(conf):
     plt.savefig(os.path.join(reportPath_angle, 'Mean Emergence Angle.svg'), dpi = 300, bbox_inches='tight')
     
     performStatisticalAnalysisAngles(conf, frame, 'Mean emergence angle')
+
+    summary_data = frame.groupby(['Day', 'Experiment']).agg({'Mean emergence angle': ['count', 'mean', 'std']})
+    summary_data.columns = [' '.join(col).strip() for col in summary_data.columns.values]
+    summary_data = summary_data.reset_index()
+    summary_data.columns = ['Day', 'Experiment', 'N Samples', 'Mean Emergence Angle (Mean)', 'Mean Emergence Angle (std)']
+    summary_data = summary_data.round(3)
+    summary_data['Day'] = summary_data['Day'].astype('int')
+    summary_data = summary_data.sort_values(by='Day', ascending=True)
+    summary_data.to_csv(os.path.join(reportPath_angle, "Mean Emergence Angle Table.csv"), index=False)
     
     syncro = getFirstLateralRoots(conf, all_data)
     
-    """
-    plt.figure(figsize = (6, 4), dpi = 200)
-
-    sns.lineplot(y = "First LR tip", x = 'Time', hue = "Experiment", data = syncro, errorbar='se')
-    plt.title('Decay of the tip angle (1st LR)')
-    plt.xlabel('Time (h)')
-    plt.ylabel('Angle')
-
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay (Copy).png'), dpi = 300, bbox_inches='tight')
-    plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay (Copy).svg'), dpi = 300, bbox_inches='tight')
-    """
-
     plt.figure(figsize = (6, 4), dpi = 200)
     sns.lineplot(y = "Real", x = 'Time', hue = "Experiment", data = syncro, errorbar=None, estimator=np.count_nonzero)
     plt.title('Number of plant with first LR roots per experiment')
@@ -470,9 +454,40 @@ def makeLateralAnglesPlots(conf):
     plt.savefig(os.path.join(reportPath_angle, 'First LR Tip Angle Decay.svg'), dpi = 300, bbox_inches='tight')
 
     performStatisticalAnalysisFirstLR(conf, syncro.copy(), 'First LR tip')
-    performStatisticalAnalysisFirstLR(conf, syncro.copy(), 'First LR tip', True)
 
-import scipy.stats as stats
+    summaryDF = []
+    
+    data = syncro.copy()
+    data['Experiment'] = data['Experiment'].astype(str)    
+    reportPath = os.path.join(conf['MainFolder'],'Report', 'Angles Analysis')
+    dt = int(conf['everyXhourFieldAngles'])
+
+    for hour in range(0, 73-dt, dt):                       
+        # Compare every pair of experiments with Mann-Whitney U test
+        end = hour + dt
+        end = min(72, end)
+
+        hours = np.arange(hour, end)
+        subdata = data[data['Time'].isin(hours)]
+
+        subdata["First LR tip"] = subdata["First LR tip"].astype(float)
+        subdata = subdata.groupby(['Experiment', 'Plant_id'])["First LR tip"].mean().reset_index()
+        subdata = subdata.groupby(['Experiment']).agg({'First LR tip': ['count', 'mean', 'std']})
+
+        subdata.columns = [' '.join(col).strip() for col in subdata.columns.values]
+        subdata = subdata.reset_index()
+        subdata['Interval'] = str(hour) + '-' + str(end)
+        
+        subdata.columns = ['Experiment', 'N Samples', 'First LR tip (Mean)', 'First LR tip (std)', 'Hours interval']
+        subdata = subdata.round(3)
+
+        summaryDF.append(subdata)
+    
+    summaryDF = pd.concat(summaryDF)
+    col = summaryDF.pop("Hours interval")
+    summaryDF.insert(0, col.name, col)
+    summaryDF.to_csv(os.path.join(reportPath_angle, "First LR Tip Angle Table.csv"), index=False)
+
 
 def performStatisticalAnalysisAngles(conf, data, metric):
     data['Experiment'] = data['Experiment'].astype(str)
@@ -499,7 +514,6 @@ def performStatisticalAnalysisAngles(conf, data, metric):
             # Compare every pair of experiments with Mann-Whitney U test
             f.write('Day: ' + str(day) + '\n')
             subdata = data[data['Day'] == str(day)]
-
             
             for i in range(0, N_exp-1):
                 for j in range(i+1, N_exp):
@@ -514,8 +528,12 @@ def performStatisticalAnalysisAngles(conf, data, metric):
                         U, p = stats.mannwhitneyu(exp1, exp2)
                         p = round(p, 6)
                         
+                        # Write the number of samples in each experiment, both in the same line
+                        f.write('Number of samples ' + UniqueExperiments[i] + ': ' + str(len(exp1)) + ' - ')
+                        f.write('Number of samples ' + UniqueExperiments[j] + ': ' + str(len(exp2)) + '\n')
+                        
                         # Write the mean value of each experiment
-                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + ' - ')
                         f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
                         
                         # Compare the p-value with the significance level
@@ -530,7 +548,7 @@ def performStatisticalAnalysisAngles(conf, data, metric):
     return
 
 
-def performStatisticalAnalysisFirstLR(conf, data, metric, average_per_plant = False):
+def performStatisticalAnalysisFirstLR(conf, data, metric):
     data['Experiment'] = data['Experiment'].astype(str)    
     UniqueExperiments = data['Experiment'].unique()
     N_exp = int(len(UniqueExperiments))
@@ -543,24 +561,24 @@ def performStatisticalAnalysisFirstLR(conf, data, metric, average_per_plant = Fa
     else:
         reportPath_stats = os.path.join(reportPath, '%s Stats.txt' % metric)
     
-    if average_per_plant:
-        reportPath_stats = reportPath_stats.replace('.txt', ' (mean per plant).txt')
+    dt = int(conf['everyXhourFieldAngles'])
 
     # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
     with open(reportPath_stats, 'w') as f:
         f.write('Using Mann Whitney U test to compare different experiments\n')
         f.write('Statistical analysis is performed every 6 hours\n')
         
-        for hour in range(0, 70, 6):                       
+        for hour in range(0, 73-dt, dt):                       
             # Compare every pair of experiments with Mann-Whitney U test
-            end = hour + 6
-            
+            end = hour + dt
+            end = min(72, end)
+
             f.write('Hour: ' + str(hour) + '-' + str(end) + '\n')
             
             hours = np.arange(hour, end)
             subdata = data[data['Time'].isin(hours)]
 
-            if average_per_plant:
+            if conf['averagePerPlantStats']:
                 subdata[metric] = subdata[metric].astype(float)
                 subdata = subdata.groupby(['Experiment', 'Plant_id']).mean().reset_index()
 
@@ -592,7 +610,6 @@ def performStatisticalAnalysisFirstLR(conf, data, metric, average_per_plant = Fa
                             f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' are not significantly different. P-value: ' + str(p) + '\n')
                     except:
                         f.write('Experiments ' + UniqueExperiments[i] + ' and ' + UniqueExperiments[j] + ' could not be compared\n')
-
-                    f.write('\n')    
+    
             f.write('\n')            
     return

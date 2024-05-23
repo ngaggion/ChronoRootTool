@@ -8,51 +8,53 @@ from scipy import signal
 
 import scipy.stats as stats
 
-def performStatisticalAnalysis(conf, all_frames, type = 'Mean', signal = "MR"):
+def performStatisticalAnalysis(conf, all_frames, signal = "MR"):
     UniqueExperiments = all_frames['Type'].unique()
     N_exp = int(len(UniqueExperiments))
-    N_days = conf['processingLimitField']
     
+    dt = int(conf['everyXhourFieldFourier'])
+    N_steps = int(round((all_frames['Time'].max()+1) / dt, 0))
+        
     # Create a text file to store the results
     reportPath = os.path.join(conf['MainFolder'],'Report')
     reportPath_fourier = os.path.join(reportPath, 'GrowthSpeeds and Fourier')
     
-    if type == 'Mean':
-        reportPath_stats = os.path.join(reportPath_fourier, '%s_Stats_Mean_per_day.txt' % signal)
-    else:
-        reportPath_stats = os.path.join(reportPath_fourier, '%s_Stats_per_day.txt' % signal)
+    reportPath_stats = os.path.join(reportPath_fourier, '%s_Stats.txt' % signal)
 
     # First row should say "Using Mann Whitney U test to compare the growth speed of different experiments"
     with open(reportPath_stats, 'w') as f:
         f.write('Using Mann Whitney U test to compare the growth speed of different experiments\n')
-        if type == 'Mean':
-            f.write('Using average growth speed per plant per day\n\n')
-        else:
-            f.write('Using all growth speeds per plant per day\n\n')
             
-        for day in range(0, N_days):            
-            # Time is in hours, subdata should be hours from 0 to 23 for Day 1
-            # Select based in Time column
-            hours = np.arange(0 * day, 24 * (day+1))
+        for step in range(0, N_steps):            
+            end = dt * (step+1)
+            end = int(min(end, all_frames['Time'].max()))
+            hours = np.arange(dt * step, end)
             subdata = all_frames[all_frames['Time'].isin(hours)]
             
             # Take average Signal per plant per experiment
-            if type == 'Mean':
+            if conf['averagePerPlantStats']:
                 subdata = subdata.groupby(['Type', 'i']).mean().reset_index()
             
             # Compare every pair of experiments with Mann-Whitney U test
-            f.write('Day: ' + str(day+1) + '\n')
-            f.write('Hours from ' + str(0 + 24*day) + ' to ' + str(23 + 24*day) + '\n')
+            f.write('Hours from ' + str(step*dt) + ' to ' + str(end) + '\n')
             
             for i in range(0, N_exp-1):
                 for j in range(i+1, N_exp):
-                    exp1 = subdata[subdata['Type'] == UniqueExperiments[i]]
-                    exp2 = subdata[subdata['Type'] == UniqueExperiments[j]]
+                    exp1 = subdata[subdata['Type'] == UniqueExperiments[i]]['Signal']
+                    exp2 = subdata[subdata['Type'] == UniqueExperiments[j]]['Signal']
                     
                     # Perform Mann-Whitney U test
                     try:
-                        U, p = stats.mannwhitneyu(exp1['Signal'], exp2['Signal'])
+                        U, p = stats.mannwhitneyu(exp1, exp2)
                         p = round(p, 6)
+                        
+                        # Write the number of samples in each experiment, both in the same line
+                        f.write('Number of samples ' + UniqueExperiments[i] + ': ' + str(len(exp1)) + ' - ')
+                        f.write('Number of samples ' + UniqueExperiments[j] + ': ' + str(len(exp2)) + '\n')
+                        
+                        # Write the mean value of each experiment
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + ' - ')
+                        f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
                         
                         # Compare the p-value with the significance level
                         if p < 0.05:
@@ -231,7 +233,7 @@ def makeFourierPlots(conf):
 
     all_frames, fouriers, time = readData(experiments)
     
-    performStatisticalAnalysis(conf, all_frames, type = 'Mean', signal = "MR")
+    performStatisticalAnalysis(conf, all_frames, signal = "MR")
 
     sns.lineplot(x="Time", y = "Signal", data = all_frames, hue="Type", errorbar='se', ax=f_ax1, estimator=np.mean)
     for j in range(0, len(time)):
@@ -246,7 +248,7 @@ def makeFourierPlots(conf):
 
     all_frames, _, _ = readData(experiments, root="TotalLengthGrad (mm/h)")
 
-    performStatisticalAnalysis(conf, all_frames, type = 'Mean', signal = "TR")
+    performStatisticalAnalysis(conf, all_frames, signal = "TR")
 
     sns.lineplot(x="Time", y = "Signal", data = all_frames, hue="Type", errorbar='se', ax=f_ax2, estimator=np.mean)
     for j in range(0, len(time)):

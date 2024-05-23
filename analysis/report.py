@@ -22,6 +22,11 @@ import pandas as pd
 import pathlib
 import re
 import os
+import scipy.stats as stats
+import numpy as np
+import cv2
+import graph_tool.all as gt
+import json
 
 def natural_key(string_):
     """See http://www.codinghorror.com/blog/archives/001018.html"""
@@ -80,12 +85,13 @@ def plot_individual_plant(savepath, dataframe, name):
     plt.clf()
     plt.close('all')
 
-import scipy.stats as stats
 
 def performStatisticalAnalysis(conf, data, metric):
     UniqueExperiments = data['Experiment'].unique().astype(str)
     N_exp = int(len(UniqueExperiments))
-    N_days = conf['processingLimitField']
+
+    dt = int(conf['everyXhourField'])
+    N_steps = int(round((data['ElapsedTime (h)'].max()+1) / dt, 0))
     
     # Create a text file to store the results
     reportPath = os.path.join(conf['MainFolder'],'Report', 'Temporal Parameters')
@@ -100,17 +106,19 @@ def performStatisticalAnalysis(conf, data, metric):
         f.write('Using Mann Whitney U test to compare different experiments\n')
         f.write('Uses the average value, per plant, per day\n\n')
          
-        for day in range(0, N_days):            
-            # Time is in hours, subdata should be hours from 0 to 23 for Day 1
-            # Select based in Time column
-            hours = np.arange(0 * day, 24 * (day+1))
+        for step in range(0, N_steps):            
+            end = dt * (step+1)
+            end = int(min(end, data['ElapsedTime (h)'].max()))
+            hours = np.arange(dt * step, end)
             subdata = data[data['ElapsedTime (h)'].isin(hours)]
-            subdata = subdata.groupby(['Experiment', 'Plant_id']).mean().reset_index()
+
+            if conf['averagePerPlantStats']:
+                subdata = subdata.groupby(['Experiment', 'Plant_id']).mean().reset_index()
+    
             subdata['Experiment'] = subdata['Experiment'].astype(str)
             
             # Compare every pair of experiments with Mann-Whitney U test
-            f.write('Day: ' + str(day+1) + '\n')
-            f.write('Hours from ' + str(0 + 24*day) + ' to ' + str(23 + 24*day) + '\n')
+            f.write('Hours from ' + str(step*dt) + ' to ' + str(end) + '\n')
             
             for i in range(0, N_exp-1):
                 for j in range(i+1, N_exp):
@@ -122,8 +130,12 @@ def performStatisticalAnalysis(conf, data, metric):
                         U, p = stats.mannwhitneyu(exp1, exp2)
                         p = round(p, 6)
                         
+                        # Write the number of samples in each experiment, both in the same line
+                        f.write('Number of samples ' + UniqueExperiments[i] + ': ' + str(len(exp1)) + ' - ')
+                        f.write('Number of samples ' + UniqueExperiments[j] + ': ' + str(len(exp2)) + '\n')
+                        
                         # Write the mean value of each experiment
-                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + '\n')
+                        f.write('Mean ' + UniqueExperiments[i] + ': ' + str(round(exp1.mean(), 2)) + ' - ')
                         f.write('Mean ' + UniqueExperiments[j] + ': ' + str(round(exp2.mean(), 2)) + '\n')
                         
                         # Compare the p-value with the significance level
@@ -137,6 +149,37 @@ def performStatisticalAnalysis(conf, data, metric):
             f.write('\n')            
     return
 
+def generateTableTemporal(conf, data):
+    dt = int(conf['everyXhourField'])
+    N_steps = int(round((data['ElapsedTime (h)'].max()+1) / dt, 0))
+    reportPath = os.path.join(conf['MainFolder'],'Report', 'Temporal Parameters')
+    
+    summaryDF = []
+    
+    for step in range(0, N_steps):            
+        end = dt * (step+1)
+        end = int(min(end, data['ElapsedTime (h)'].max()))
+        hours = np.arange(dt * step, end)
+        subdata = data[data['ElapsedTime (h)'].isin(hours)]
+        subdata = subdata.groupby(['Experiment', 'Plant_id']).mean().reset_index()
+        subdata = subdata.groupby(['Experiment']).agg({'MainRootLength (mm)': ['count', 'mean', 'std'],
+                                                      'LateralRootsLength (mm)': ['mean', 'std'], 
+                                                      'TotalLength (mm)': ['mean', 'std'], 
+                                                      'NumberOfLateralRoots': ['mean', 'std'], 
+                                                      'DiscreteLateralDensity (LR/cm)': ['mean', 'std'], 
+                                                      'MainOverTotal (%)': ['mean', 'std']})
+        
+        subdata.columns = [' '.join(col).strip() for col in subdata.columns.values]
+        subdata = subdata.reset_index()
+        subdata['Hours interval'] = str(dt * step) + '-' + str(end - 1)
+        summaryDF.append(subdata)
+
+    summaryDF = pd.concat(summaryDF)
+    summaryDF.rename(columns={"MainRootLength (mm) count": "N experiment"}, inplace=True)
+    col = summaryDF.pop("Hours interval")
+    summaryDF.insert(0, col.name, col)
+    summaryDF.to_csv(os.path.join(reportPath, "Temporal Parameters Summary Table.csv"), index=False)    
+    
 def plot_info_all(savepath, dataframe):
     plt.ioff()
     
@@ -203,7 +246,6 @@ def plot_info_all(savepath, dataframe):
     plt.cla()
     plt.clf()
     plt.close('all')
-    
 
 def mkdir(path):
     try:
@@ -211,13 +253,6 @@ def mkdir(path):
     except:
         pass
     return
-
-
-### CONVEX HULL FUNCTIONS
-import numpy as np
-import cv2
-import graph_tool.all as gt
-import json
 
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
@@ -630,7 +665,7 @@ def plot_convex_hull(savepath, frame, name = ''):
     plt.close('all')
 
     # Group data by Day and Experiment, then calculate mean and standard deviation for each metric
-    summary_data = frame.groupby(['Day', 'Experiment']).agg({'Convex Hull Area': ['mean', 'std'],
+    summary_data = frame.groupby(['Day', 'Experiment']).agg({'Convex Hull Area': ['count', 'mean', 'std'],
                                                             'Lateral Root Area Density': ['mean', 'std'],
                                                             'Convex Hull Aspect Ratio': ['mean', 'std'],
                                                             'Total Root Area Density': ['mean', 'std'],
@@ -644,8 +679,8 @@ def plot_convex_hull(savepath, frame, name = ''):
     summary_data = summary_data.reset_index()
 
     # Rename columns for better readability
-    summary_data.columns = ['Day', 'Experiment', 
-                            'Convex Hull Area Mean', 'Convex Hull Area Std',
+    summary_data.columns = ['Day', 'Experiment', 'N Samples', 
+                            'Convex Hull Area Mean', 'Convex Hull Area Std', 
                             'Lateral Root Area Density Mean', 'Lateral Root Area Density Std',
                             'Convex Hull Aspect Ratio Mean', 'Convex Hull Aspect Ratio Std',
                             'Total Root Area Density Mean', 'Total Root Area Density Std',
@@ -658,7 +693,6 @@ def plot_convex_hull(savepath, frame, name = ''):
     summary_data.to_csv(os.path.join(savepath, "Summary Table.csv"), index=False)
 
     
-
 def performStatisticalAnalysisConvexHull(conf, data, metric):
     data['Experiment'] = data['Experiment'].astype(str)
     data['Day'] = data['Day'].astype(str)
