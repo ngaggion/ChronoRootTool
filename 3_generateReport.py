@@ -96,7 +96,7 @@ if __name__ == "__main__":
                         all_data = pd.concat([all_data, data], ignore_index=True)
                         
                         iplot = os.path.join(results, exp_name + "_" + name + ".png")
-                        shutil.copy(iplot, os.path.joint(iplots, name+".png"))
+                        shutil.copy(iplot, os.path.join(iplots, exp_name + "_" + name+".png"))
 
             if conf['doConvex']:
                 print("Performing convex hull analysis for experiment:", exp_name)
