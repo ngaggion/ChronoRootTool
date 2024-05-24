@@ -10,6 +10,8 @@ import os
 from .report import load_path as loadPath
 import scipy.stats as stats
 
+plt.switch_backend('agg')
+
 # ignore warnings from pandas
 pd.options.mode.chained_assignment = None  # default='warn'
 

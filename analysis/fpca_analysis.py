@@ -13,10 +13,10 @@ from scipy.stats import norm, mannwhitneyu
 import os
 import json
 import sys
+plt.switch_backend('agg')
 
 if __name__ == "__main__":
     conf_path = sys.argv[1]
-    temporal_data_path = sys.argv[2]
 
     COLUMNS = [
     'MainRootLength (mm)',
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     inverse_rank_normalize = conf['normFPCA']
     number_of_components = int(conf['numComponentsFPCAField'])
 
-    temporal_data_df = pd.read_csv(temporal_data_path)
+    temporal_data_df = pd.read_csv(os.path.join(os.path.join(path, "Report", "Temporal_Data.csv")))
     temporal_data_df['Experiment'] = temporal_data_df['Experiment'].astype('str')
     temporal_data_df = temporal_data_df.sort_values(by="Experiment")
 
@@ -128,7 +128,10 @@ if __name__ == "__main__":
                 labels = [f'{z_quantiles[i, fpc1-1]:.2f}' for i in range(N+1)]
                 ax.legend(handles, labels, title=f'FPC{fpc1} Value', bbox_to_anchor=(1.05, 1), loc='upper left')
 
-                plt.tight_layout()
-                plt.savefig(os.path.join(report, name + ".png"), dpi=300, bbox_inches='tight')
-                plt.savefig(os.path.join(report, name + ".svg"), dpi=300, bbox_inches='tight')
+            plt.tight_layout()
+            plt.savefig(os.path.join(report, name + ".png"), dpi=300, bbox_inches='tight')
+            plt.savefig(os.path.join(report, name + ".svg"), dpi=300, bbox_inches='tight')
+            plt.close()
+            plt.cla()
+            plt.clf()
     

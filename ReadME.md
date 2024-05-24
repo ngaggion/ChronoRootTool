@@ -85,7 +85,6 @@ Then, run the Docker container with the following command:
 MOUNT="YOUR_LOCAL_INFORMATION_PATH"
 
 docker run -it --gpus all \
-    --user $(id -u):$(id -g)
     -v $MOUNT:/DATA/ \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \

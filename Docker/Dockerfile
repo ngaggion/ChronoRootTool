@@ -15,22 +15,23 @@ RUN git clone https://github.com/ngaggion/nnUNet /nnUNet
 WORKDIR /nnUNet
 
 # Install nnUNet
-RUN /opt/conda/bin/conda run pip install -e .
+RUN /opt/conda/bin/conda run pip install -e . && \
+    /opt/conda/bin/conda clean -a -y
 
 WORKDIR /
 
 # Create and activate Conda environment for GUI Interface 
-RUN /opt/conda/bin/conda create -y -n ChronoRootInterface python=3.8 \
-    graph-tool=2.29 pyqt=5.9.2 numpy scikit-image pandas seaborn -c conda-forge/label/cf202003 && \
+RUN /opt/conda/bin/conda create -y -n ChronoRootInterface python=3.8.2 \
+    graph-tool=2.29 pyqt=5.9.2 numpy=1.18.1 scikit-image=0.16.2 pandas=1.0.3 seaborn=0.12.2 -c conda-forge/label/cf202003 && \
     /opt/conda/bin/conda install -y -n ChronoRootInterface -c conda-forge pyzbar pip && \
     /opt/conda/envs/ChronoRootInterface/bin/pip install opencv-python && \
-    echo "conda activate ChronoRootInterface" >> ~/.bashrc
+    echo "conda activate ChronoRootInterface" >> ~/.bashrc && \
+    /opt/conda/bin/conda clean -a -y
 
 # Create and activate Conda environment for GUI Interface 
 RUN /opt/conda/bin/conda create -y -n FDA && \
-    /opt/conda/bin/conda install -y -n FDA -c conda-forge scikit-fda scipy pandas matplotlib seaborn ipykernel
-
-RUN /opt/conda/bin/conda clean -a -y
+    /opt/conda/bin/conda install -y -n FDA -c conda-forge scikit-fda scipy pandas matplotlib seaborn ipykernel && \
+    /opt/conda/bin/conda clean -a -y
 
 # Clean up
 RUN apt-get clean && \

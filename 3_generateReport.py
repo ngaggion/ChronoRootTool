@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import re
+import shutil
 import pandas as pd
 import os
 import json
@@ -94,7 +94,9 @@ if __name__ == "__main__":
                         data['Experiment'] = exp_name
 
                         all_data = pd.concat([all_data, data], ignore_index=True)
-                        plot_individual_plant(iplots, data, name)
+                        
+                        iplot = os.path.join(results, exp_name + "_" + name + ".png")
+                        shutil.copy(iplot, os.path.joint(iplots, name+".png"))
 
             if conf['doConvex']:
                 print("Performing convex hull analysis for experiment:", exp_name)
@@ -130,7 +132,7 @@ if __name__ == "__main__":
     
     if conf['doFPCA']:
         command = [
-            "conda", "run", "-n", "FDA", "python", "analysis/fpca_analysis.py", "config.json", os.path.join(reportPath, 'Temporal_Data.csv')
+            "conda", "run", "-n", "FDA", "python", "analysis/fpca_analysis.py", "config.json"
         ]
         subprocess.run(command, check=True)
     
