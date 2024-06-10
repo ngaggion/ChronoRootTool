@@ -9,6 +9,7 @@ import pandas as pd
 import os
 from .report import load_path as loadPath
 import scipy.stats as stats
+import cv2
 
 plt.switch_backend('agg')
 
@@ -154,7 +155,12 @@ def lenRoot(points, pixel_size = 0.04):
 
 
 def getAngles(conf, path):
-    paths = loadPath(os.path.join(path,'RSML'), '*')
+    # Only process the RSML for images that have been postprocessed
+    images = pd.read_csv(os.path.join(path, "FilesAfterPostprocessing.csv"))["FileName"].tolist()
+    RSML = os.listdir(os.path.join(path, "RSML"))
+    
+    paths = [image for image in images if image.split('/')[-1].replace('.png','.rsml') in RSML]
+    paths = [os.path.join(path, 'RSML', image.split('/')[-1].replace('.png','.rsml')) for image in paths]
 
     LateralRoots = []
     LateralRootsInis = []
@@ -615,3 +621,130 @@ def performStatisticalAnalysisFirstLR(conf, data, metric):
     
             f.write('\n')            
     return
+
+def estimateAngles(path, ax, img, i = -1, tip=False):
+    plt.ioff()
+    paths = loadPath(os.path.join(path,'RSML'))
+
+    LateralRoots = []
+    LateralRootsInis = []
+    LateralRootsNames = []
+    NRoots = 0
+
+
+    step = paths[i]
+    arbol = ET.parse(step).getroot()
+
+    with open(os.path.join(path, 'metadata.json')) as f:
+        metadata = json.load(f)
+
+    y1,y2,x1,x2 = metadata['bounding box']
+    h = y2-y1
+    w = x2-x1
+
+    plant = arbol[1][0][0]
+    
+    if len(plant) > 1:
+        LRs = plant[1:]
+        
+        pts = []
+        inis = []
+
+        ## Primero hago el tracking
+        for LR in LRs:
+            puntos = recorrerRaiz(LR, True)
+            pts.append(puntos)
+            inis.append(puntos[0])
+
+        LateralRootsInis, LateralRoots, LateralRootsNames, NRoots = matching(inis, pts, LateralRootsInis, LateralRoots, LateralRootsNames, NRoots)
+        
+        ## Luego estimo los angulos
+        tips = []
+        emergs = []
+        lengths = []
+
+        for root in LateralRoots:
+            TipAngle = tipAngle(root)
+            EmergenceAngle = emergenceAngle(root, 2, metadata['pixel_size'])
+
+            tips.append(TipAngle)
+            emergs.append(EmergenceAngle)
+
+        ax.imshow(img)
+        
+        for i in range(0, len(pts)):            
+            if not tip:
+                plotAngles(ax, pts[i], emergs[i], tip = tip)
+            else:
+                plotAngles(ax, pts[i], tips[i], tip = tip)
+        ax.axis('off')
+    
+    return ax
+
+def plotLateralAnglesOnTop(conf):
+    exp_path = os.path.join(conf['MainFolder'], "Analysis")
+    save_path = os.path.join(conf['MainFolder'], "Report", "Angles Analysis", "Images")    
+    os.makedirs(save_path, exist_ok = True)
+
+    experiments = os.listdir(exp_path)
+
+    for exp in experiments:
+        robot_path = os.path.join(exp_path, exp)
+
+        for robot in os.listdir(robot_path):
+            cam_path = os.path.join(robot_path, robot)
+
+            for cam in os.listdir(cam_path):
+                plant_path = os.path.join(cam_path, cam)
+
+                for plant in os.listdir(plant_path):
+                    results_path = os.listdir(os.path.join(plant_path, plant))
+
+                    if len(results_path) > 0:
+                        results_path = os.path.join(plant_path, plant, results_path[-1])
+                    else:
+                        continue
+                    
+                    if os.path.exists(results_path):
+                        metadata_path = results_path + "/metadata.json"
+                        metadata = json.load(open(metadata_path))
+
+                        # lateral data
+                        image_path = os.listdir(metadata["ImagePath"])
+                        
+                        i = -1
+
+                        images = pd.read_csv(os.path.join(results_path, "FilesAfterPostprocessing.csv"))["FileName"].tolist()
+                        RSML = os.listdir(os.path.join(results_path, "RSML"))
+
+                        images = [image for image in images if image.split('/')[-1].replace('.png','.rsml') in RSML]
+
+                        bbox = metadata["bounding box"]
+                        crop = cv2.imread(images[i])[bbox[0]:bbox[1], bbox[2]:bbox[3]]
+                        
+                        save = exp + "_" + robot + "_" + cam + "_" + plant + "_crop.png"
+                        cv2.imwrite(os.path.join(save_path, save), crop)
+
+                        fig, ax = plt.subplots(figsize = (16, 8), dpi = 200)
+
+                        estimateAngles(results_path, ax, crop.copy(), i)
+                        plt.title("Emergence Angles")
+
+                        save = exp + "_" + robot + "_" + cam + "_" + plant + "_emergence_angles.svg"
+                        plt.savefig(os.path.join(save_path, save), bbox_inches = "tight", dpi = 200)
+
+                        plt.close()
+                        plt.clf()
+                        plt.cla()
+
+                        fig, ax = plt.subplots(figsize = (16, 8), dpi = 200)
+
+                        estimateAngles(results_path, ax, crop.copy(), i, True)
+                        plt.title("Tip Angles")
+
+                        save = exp + "_" + robot + "_" + cam + "_" + plant + "_tip_angles.svg"
+                        plt.savefig(os.path.join(save_path, save), bbox_inches = "tight", dpi = 200)
+
+                        plt.close()
+                        plt.clf()
+                        plt.cla()

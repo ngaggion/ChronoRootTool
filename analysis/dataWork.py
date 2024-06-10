@@ -130,6 +130,8 @@ def dataWork(conf, pfile, folder, N_exp = None):
     data['NumberOfLateralRoots'] = numlateralRoots
     data['TotalLength (mm)'] = mainRoot_mm + lateralRoots_mm
 
+    data['FileName'].to_csv(os.path.join(folder, 'FilesAfterPostprocessing.csv'), index = False)
+
     # Removes original columns
     data = data.drop(columns=['FileName', 'Frame', 'MainRootLength', 'LateralRootsLength', 'TotalLength'])
     # Reorders columns

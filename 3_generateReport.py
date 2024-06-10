@@ -24,7 +24,7 @@ from analysis.report import load_path, plot_individual_plant, mkdir, plot_info_a
 from analysis.report import plot_combined_atlases, plot_convex_hull, performStatisticalAnalysis
 from analysis.report import performStatisticalAnalysisConvexHull, generateTableTemporal
 from analysis.fourier_analysis import makeFourierPlots
-from analysis.lateral_angles import makeLateralAnglesPlots
+from analysis.lateral_angles import makeLateralAnglesPlots, plotLateralAnglesOnTop
 import subprocess
 
 if __name__ == "__main__":
@@ -156,6 +156,7 @@ if __name__ == "__main__":
     if conf['doLateralAngles']:
         print("Generating lateral angles analysis plots.")
         makeLateralAnglesPlots(conf)
+        plotLateralAnglesOnTop(conf)
 
     print("Report generation finished.")
     
