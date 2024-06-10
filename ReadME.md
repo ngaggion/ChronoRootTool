@@ -135,3 +135,13 @@ For Ubuntu-based distributions please follow these steps:
     ```bash
     sudo apt-get install -y nvidia-docker2
     ```
+
+### Singularity
+
+As sudo access may not be available for usage after installing ChronoRoot, Singularity may be used, as it provides a easy way to use Docker images:
+
+```bash
+    singularity build ChronoRoot.simg docker://ngaggion/chronoroot
+```
+
+For more information, refer to [Singularity's documentation](https://docs.sylabs.io/guides/2.6/user-guide/build_a_container.html).
