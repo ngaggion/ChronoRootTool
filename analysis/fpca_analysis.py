@@ -73,6 +73,12 @@ if __name__ == "__main__":
             fpc_df[f'FPC{j}_IRN'] = norm.ppf(fpc_df[f'FPC{j}'].rank() / (len(fpc_df) + 1))
         fpc_df = fpc_df.sort_values(by="Experiment")
         
+        ax = plt.subplot(5, 2, 2)
+        plt.axis('off')
+        for fpc1 in range(1, number_of_components + 1): 
+            plt.text(0.01, 1 - 0.10*fpc1, 'Explained variance by PC%s: ' %fpc1+ '{:.2f}%'.format(fpca.explained_variance_ratio_[fpc1-1] * 100), fontsize=12, color='black')
+        plt.text(0.01, 1 - 0.10*(number_of_components+1), 'Total explained variance: ' + '{:.2f}%'.format(sum(fpca.explained_variance_ratio_) * 100), fontsize=12, color='black')
+
         with open(os.path.join(report, name + "_stats.txt"), 'w') as f:
             f.write('Using Mann Whitney U test to compare different experiments\n')
             

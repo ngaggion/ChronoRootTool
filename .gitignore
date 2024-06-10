@@ -4,3 +4,4 @@ config.json
 local.sh
 ChronoRoot.sh
 Segmentation/ChronoRoot_nnUNet
+Segmentation/paths.txt

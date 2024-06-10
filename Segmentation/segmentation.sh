@@ -30,7 +30,16 @@ export nnUNet_raw="ChronoRoot_nnUNet/nnUNet_raw"
 export nnUNet_preprocessed="ChronoRoot_nnUNet/nnUNet_preprocessed"
 export nnUNet_results="ChronoRoot_nnUNet/nnUNet_results"
 
-process_input_path DATA/Videos2023/rpi6_2023-09-25_15-59/1
-process_input_path DATA/Videos2023/rpi6_2023-09-25_15-59/2
-process_input_path DATA/Videos2023/rpi6_2023-09-25_15-59/3
-process_input_path DATA/Videos2023/rpi6_2023-09-25_15-59/4
+# Check if a filename is provided as an argument
+if [ -z "$1" ]; then
+    echo "Usage: $0 <path_to_file>"
+    exit 1
+fi
+
+# Get the filename from the first argument
+filename=$1
+
+# Loop through each line in the specified file and process the path
+while IFS= read -r line; do
+    process_input_path "$line"
+done < "$filename"

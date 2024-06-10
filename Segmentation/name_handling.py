@@ -61,6 +61,12 @@ if __name__ == "__main__":
             name_mapping = {line.split(',')[0]: line.split(',')[1].strip() for line in f}
         revert_seg_file_names(args.segpath, name_mapping)
     else:
+        # Check if name_mapping.txt already exists, if so, check that the files have not been renamed yet
+        if os.path.exists(os.path.join(args.path, "name_mapping.txt")):
+            for file in os.listdir(args.path):
+                if file.startswith("image_"):
+                    raise ValueError("Files have already been renamed. Please run error_handler.sh to revert the files back to original names.")
+                
         name_mapping = rename_files(args.path)
         # Save name mapping to a file
         with open(os.path.join(args.path, "name_mapping.txt"), "w") as f:

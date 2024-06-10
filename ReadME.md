@@ -53,13 +53,15 @@ git lfs install
 git clone https://huggingface.co/datasets/ngaggion/ChronoRoot_nnUNet
 ```
 
-Modify the bash file with paths to your videos individually. An example is provided:
+Create a .txt file with paths to your videos individually (per camera), then run the segmentation script:
 
 ```bash
 cd Segmentation
 conda activate nnUNet
-./segment.sh
+./segmentation.sh path_list.txt
 ```
+
+A error_handler script is attached in case the segmentation script ended abruptly, leaving the filenames in the nnUNet convention.
 
 ## Combined ChronoRoot Docker Image
 

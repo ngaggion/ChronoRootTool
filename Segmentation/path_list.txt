@@ -1,0 +1,4 @@
+/path/to/rpi/camera1
+/path/to/rpi/camera2
+/path/to/rpi/camera3
+/path/to/rpi/camera4
