@@ -708,9 +708,6 @@ def plotLateralAnglesOnTop(conf):
                     if os.path.exists(results_path):
                         metadata_path = results_path + "/metadata.json"
                         metadata = json.load(open(metadata_path))
-
-                        # lateral data
-                        image_path = os.listdir(metadata["ImagePath"])
                         
                         i = -1
 
@@ -718,6 +715,7 @@ def plotLateralAnglesOnTop(conf):
                         RSML = os.listdir(os.path.join(results_path, "RSML"))
 
                         images = [image for image in images if image.split('/')[-1].replace('.png','.rsml') in RSML]
+                        images = [os.path.join(metadata["ImagePath"], image) for image in images]
 
                         bbox = metadata["bounding box"]
                         crop = cv2.imread(images[i])[bbox[0]:bbox[1], bbox[2]:bbox[3]]
