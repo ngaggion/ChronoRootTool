@@ -87,8 +87,11 @@ class Ui_ChronoRootAnalysis:
 
     def loadJsonIntoFields(self):
         json_path = os.path.join(os.getcwd(), "config.json")
-        data = json.load(open(json_path, 'r'))
-
+        try:
+            data = json.load(open(json_path, 'r'))
+        except:
+            return
+        
         for field in [self.rpiField, self.cameraField, self.plantField, self.processingLimitField, 
                       self.processingLimitField_3, self.emergenceDistanceField, self.captureIntervalField,
                       self.everyXhourField, self.everyXhourFieldFourier, self.everyXhourFieldAngles, self.numComponentsFPCAField]:
