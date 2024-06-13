@@ -247,6 +247,17 @@ class Ui_ChronoRootAnalysis:
         metadata = json.load(open(os.path.join(self.selected_plant, "metadata.json"), 'r'))
         bbox = metadata["bounding box"]
         overlayPath = metadata["folders"]["images"] + "/SegMulti/"
+        
+        variety = self.selected_plant.split(os.path.sep)[-5]
+        rpi = self.selected_plant.split(os.path.sep)[-4]
+        camera = self.selected_plant.split(os.path.sep)[-3]
+        plant = self.selected_plant.split(os.path.sep)[-2]
+
+        filename = variety + "_" + rpi + "_" + camera + "_" + plant + ".png"
+        image2_path = os.path.join(self.selected_plant, filename)
+        
+        if not os.path.exists(image2_path):
+            image2_path = None
 
         # list all images in the folder with pathlib, then sort them
         pathlib_dir = pathlib.Path(overlayPath)
@@ -255,18 +266,9 @@ class Ui_ChronoRootAnalysis:
         image_files = sorted(image_files, key=lambda x: natural_keys(x))
 
         if len(image_files) == 0:
-            return None, None, None, None
+            return None, image2_path, overlayPath, None
         
         overlay = image_files[-1]
-
-        variety = self.selected_plant.split(os.path.sep)[-5]
-        rpi = self.selected_plant.split(os.path.sep)[-4]
-        camera = self.selected_plant.split(os.path.sep)[-3]
-        plant = self.selected_plant.split(os.path.sep)[-2]
-
-        filename = variety + "_" + rpi + "_" + camera + "_" + plant + ".png"
-        image2_path = os.path.join(self.selected_plant, filename)
-
         image1_path = metadata["ImagePath"] + '/' + overlay.split(os.path.sep)[-1]
 
         return image1_path, image2_path, overlay, bbox
@@ -283,10 +285,16 @@ class Ui_ChronoRootAnalysis:
         image1_path, image2_path, overlay, bbox = self.get_image_paths()
 
         # Check if image paths exist
-        if image1_path is None or not os.path.exists(image1_path):
+        if image1_path is None:
             self.image_label1.clear()
             size = QtCore.QSize(250, 560)
             pixmap2 = QtGui.QPixmap("placeholder_figures/plant_placeholder.png")
+            self.image_label1.set_pixmap(pixmap2, size)
+            self.image_label1.show()
+        elif not os.path.exists(image1_path) or not os.path.exists(overlay):
+            self.image_label1.clear()
+            size = QtCore.QSize(250, 560)
+            pixmap2 = QtGui.QPixmap("placeholder_figures/plant_placeholder_2.png")
             self.image_label1.set_pixmap(pixmap2, size)
             self.image_label1.show()
         else:
