@@ -266,7 +266,7 @@ class Ui_ChronoRootAnalysis:
         image_files = sorted(image_files, key=lambda x: natural_keys(x))
 
         if len(image_files) == 0:
-            return None, image2_path, overlayPath, None
+            return "Image not found", image2_path, overlayPath, None
         
         overlay = image_files[-1]
         image1_path = metadata["ImagePath"] + '/' + overlay.split(os.path.sep)[-1]
